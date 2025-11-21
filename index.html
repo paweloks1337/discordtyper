@@ -1,141 +1,42 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Typer CS2</title>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script defer src="script.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
-<style>
-  input { margin-right: 5px; }
-</style>
-</head>
-<body class="bg-gray-100 p-4">
-
-<h1 class="text-2xl font-bold mb-4">Typer CS2</h1>
+<!-- Google Sign-In -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div id="login">
-  <input type="text" id="nick" placeholder="Twój nick" class="border p-2">
-  <button onclick="login()" class="bg-blue-500 text-white px-4 py-2">Zaloguj</button>
+  <h2>Zaloguj się</h2>
+
+  <div id="g_id_onload"
+      data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+      data-context="signin"
+      data-ux_mode="popup"
+      data-callback="onGoogleSignIn">
+  </div>
+
+  <div class="g_id_signin"
+      data-type="standard"
+      data-size="large"
+      data-theme="outline">
+  </div>
 </div>
 
-<div id="panel" class="hidden">
-
-  <!-- Panel admina -->
-  <h2 class="text-xl font-bold my-2">Dodaj mecz (admin)</h2>
-  <input type="text" id="teamA" placeholder="Team A" class="border p-2">
-  <input type="text" id="teamB" placeholder="Team B" class="border p-2">
-  <button onclick="dodajMecz()" class="bg-green-500 text-white px-4 py-2">Dodaj mecz</button>
-
-  <h2 class="text-xl font-bold my-2">Twoje typy</h2>
-  <div id="mecze"></div>
-
-  <h2 class="text-xl font-bold my-2">Ranking</h2>
-  <div id="ranking"></div>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
 
 <script>
-const API_URL = 'https://sheetdb.io/api/v1/dga1mz4n8hj0y'; // <-- Twój SheetDB URL
-let nick = '';
+let nick = "";
+let googleID = "";
 
-// Logowanie
-function login() {
-  nick = document.getElementById('nick').value.trim();
-  if (!nick) return alert("Wpisz nick!");
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('panel').classList.remove('hidden');
-  loadMecze();
-  loadRanking();
-}
+function onGoogleSignIn(response) {
+  const data = jwtDecode(response.credential);
 
-// Wczytanie meczów
-async function loadMecze() {
-  try {
-    const res = await axios.get(API_URL + '/Mecze');
-    const mecze = res.data;
-    let html = '';
-    mecze.forEach(m => {
-      html += `
-        <div class="border p-2 mb-2">
-          <strong>${m.TeamA} vs ${m.TeamB}</strong><br>
-          Typ zwycięzcy: 
-          <select id="winner_${m.ID}">
-            <option value="${m.TeamA}">${m.TeamA}</option>
-            <option value="${m.TeamB}">${m.TeamB}</option>
-          </select>
-          Wynik: 
-          <input type="number" id="scoreA_${m.ID}" placeholder="A" class="w-12 border p-1">
-          <input type="number" id="scoreB_${m.ID}" placeholder="B" class="w-12 border p-1">
-          <button onclick="submitTyp('${m.ID}')" class="bg-blue-500 text-white px-2 py-1">Wyślij typ</button>
-        </div>`;
-    });
-    document.getElementById('mecze').innerHTML = html;
-  } catch(err) {
-    console.error(err);
-    document.getElementById('mecze').innerHTML = "<p>Błąd wczytywania meczów</p>";
-  }
-}
+  googleID = data.sub;
+  nick = data.name;
 
-// Dodanie meczu (admin)
-async function dodajMecz() {
-  const teamA = document.getElementById('teamA').value;
-  const teamB = document.getElementById('teamB').value;
-  if (!teamA || !teamB) return alert("Wpisz oba zespoły");
-  try {
-    await axios.post(API_URL + '/Mecze', {
-      data: { TeamA: teamA, TeamB: teamB, WynikA: '', WynikB: '', Zakończony: 'NIE' }
-    });
-    alert(`Dodano mecz: ${teamA} vs ${teamB}`);
-    document.getElementById('teamA').value = '';
-    document.getElementById('teamB').value = '';
-    loadMecze();
-  } catch(err) {
-    console.error(err);
-    alert("Błąd dodawania meczu");
-  }
-}
+  console.log("Zalogowano jako:", nick, googleID);
 
-// Wysłanie typu użytkownika
-async function submitTyp(idMeczu) {
-  const winner = document.getElementById(`winner_${idMeczu}`).value;
-  const scoreA = document.getElementById(`scoreA_${idMeczu}`).value;
-  const scoreB = document.getElementById(`scoreB_${idMeczu}`).value;
-  if (!winner || scoreA === '' || scoreB === '') return alert("Wypełnij wszystkie pola");
-  try {
-    await axios.post(API_URL + '/Typy', {
-      data: { Nick: nick, ID_meczu: idMeczu, Typ_zwyciezcy: winner, Typ_wynikuA: scoreA, Typ_wynikuB: scoreB, Punkty: 0 }
-    });
-    alert("Twój typ został zapisany!");
-    loadRanking();
-  } catch(err) {
-    console.error(err);
-    alert("Błąd wysyłania typu");
-  }
-}
+  // Ukrywamy logowanie
+  document.getElementById("login").style.display = "none";
 
-// Wczytanie rankingu
-async function loadRanking() {
-  try {
-    const res = await axios.get(API_URL + '/Typy');
-    const typy = res.data;
-    const ranking = {};
-    typy.forEach(t => {
-      const nicku = t.Nick;
-      ranking[nicku] = ranking[nicku] ? ranking[nicku] + parseInt(t.Punkty || 0) : parseInt(t.Punkty || 0);
-    });
-    const sorted = Object.entries(ranking).sort((a,b) => b[1]-a[1]);
-    let html = '';
-    sorted.forEach(([nicku, punkty]) => {
-      html += `<div>${nicku}: ${punkty} pkt</div>`;
-    });
-    document.getElementById('ranking').innerHTML = html;
-  } catch(err) {
-    console.error(err);
-    document.getElementById('ranking').innerHTML = "<p>Błąd wczytywania rankingu</p>";
-  }
+  // Pokaż resztę strony
+  const panel = document.getElementById("panel");
+  if (panel) panel.style.display = "block";
 }
 </script>
-
-</body>
-</html>
