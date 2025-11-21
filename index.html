@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typer CS2</title>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script defer src="script.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-4">
+
+<h1 class="text-2xl font-bold mb-4">Typer CS2</h1>
+
+<div id="login">
+  <input type="text" id="nick" placeholder="Twój nick" class="border p-2">
+  <button onclick="login()" class="bg-blue-500 text-white px-4 py-2">Zaloguj</button>
+</div>
+
+<div id="panel" class="hidden">
+  <h2 class="text-xl font-bold my-2">Dodaj mecz (admin)</h2>
+  <input type="text" id="teamA" placeholder="Team A" class="border p-2">
+  <input type="text" id="teamB" placeholder="Team B" class="border p-2">
+  <button onclick="dodajMecz()" class="bg-green-500 text-white px-4 py-2">Dodaj mecz</button>
+
+  <h2 class="text-xl font-bold my-2">Twoje typy</h2>
+  <div id="mecze"></div>
+
+  <h2 class="text-xl font-bold my-2">Ranking</h2>
+  <div id="ranking"></div>
+</div>
+
+</body>
+  </html>
