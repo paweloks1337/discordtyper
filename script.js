@@ -1,175 +1,229 @@
-// ================= CONFIG =================
-const API_BASE = "https://sheetdb.io/api/v1/7gslk5j1lnvg7"; // Twój SheetDB (potwierdzone)
-window._debug = (t) => {
-  const el = document.getElementById('debug');
-  if (el) el.innerText = (el.innerText ? el.innerText + '\n' : '') + t;
-  console.log('DEBUG:', t);
-};
+/* ======================
+  Konfiguracja SheetDB
+====================== */
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // Twój nowy SheetDB API
+let googleID = '';
+let nick = '';
+let role = 'user';
 
-// ================= Google Sign-In callback =================
-// Google wywoła "onGoogleSignIn" — nazwa musi być taka sama
-async function onGoogleSignIn(response) {
+/* ======================
+  LOGOWANIE Google
+====================== */
+function handleLogin(response) {
   try {
-    document.getElementById('loginDebug').innerText = 'Google callback OK — dekoduję token...';
-    console.log('Google response:', response);
+    const data = jwt_decode(response.credential);
+    googleID = data.sub;
+    const givenName = data.name || data.email || 'Gracz';
 
-    // prosty decode JWT (ładuje dane bez jwt-decode lib)
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    console.log('JWT payload:', payload);
-    window.loggedGoogle = { id: payload.sub, email: payload.email, name: payload.name };
-
-    document.getElementById('loginCard').style.display = 'none';
-    document.getElementById('nickBox').style.display = 'block';
-    document.getElementById('nickDebug').innerText = `Zalogowano jako: ${payload.email}`;
-    document.getElementById('nickInput').value = payload.name || payload.email || '';
-
-    window._debug('Google OK: sub=' + payload.sub);
-  } catch (e) {
-    console.error('onGoogleSignIn err', e);
-    document.getElementById('loginDebug').innerText = 'ERROR: onGoogleSignIn nie powiodło się (sprawdź konsolę)';
+    axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
+      .then(res => {
+        if (res.data && res.data.length > 0) {
+          const u = res.data[0];
+          nick = u.Nick || givenName;
+          role = (u.Role && u.Role.toLowerCase() === 'admin') ? 'admin' : 'user';
+          afterLogin();
+        } else {
+          // nowy użytkownik → ustaw nick
+          document.getElementById('g_id_onload').style.display = 'none';
+          document.getElementById('nickForm').style.display = 'block';
+          document.getElementById('nickInput').value = givenName;
+        }
+      })
+      .catch(err => console.error(err));
+  } catch (err) {
+    console.error('Błąd logowania:', err);
   }
 }
 
-// ================= SheetDB — helpery (nowy sposób) =================
+/* ======================
+  ZAPIS NICKU
+====================== */
+function saveNick() {
+  const v = document.getElementById('nickInput').value.trim();
+  if (!v || v.length < 2) { alert('Nick za krótki'); return; }
+  nick = v;
 
-// POST (create row in given sheet)
-async function sheetPost(sheet, obj) {
-  try {
-    const res = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheet: sheet, data: obj })
+  axios.post(API_BASE + '/Users', { data: { UserID: googleID, Nick: nick, Role: 'user' }})
+    .then(() => {
+      afterLogin();
+    })
+    .catch(err => {
+      console.error('saveNick err', err);
+      alert('Błąd zapisu nicku. Sprawdź arkusz Users i konfigurację SheetDB.');
     });
-    const j = await res.json();
-    window._debug(`POST ${sheet} -> ${JSON.stringify(j)}`);
-    return j;
-  } catch (e) {
-    console.error('sheetPost err', e);
-    window._debug('ERROR sheetPost: ' + e.message);
-    throw e;
-  }
 }
 
-// PATCH (update rows by search) — nowy sposób: body zawiera sheet + data + search
-async function sheetPatch(sheet, searchObj, updateObj) {
-  try {
-    const res = await fetch(API_BASE, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheet: sheet, data: updateObj, search: searchObj })
-    });
-    const j = await res.json();
-    window._debug(`PATCH ${sheet} search=${JSON.stringify(searchObj)} -> ${JSON.stringify(j)}`);
-    return j;
-  } catch (e) {
-    console.error('sheetPatch err', e);
-    window._debug('ERROR sheetPatch: ' + e.message);
-    throw e;
-  }
+/* ======================
+  PO LOGOWANIU
+====================== */
+function afterLogin() {
+  localStorage.setItem('nick', nick);
+  window.location.href = 'panel.html'; // przejście do panelu
 }
 
-// SEARCH (GET) — spróbujemy najpierw prostego GET na /search?sheet=...&Field=Value
-async function sheetSearch(sheet, field, value) {
-  try {
-    // preferowany /search endpoint
-    const url = `${API_BASE}/search?sheet=${encodeURIComponent(sheet)}&${encodeURIComponent(field)}=${encodeURIComponent(value)}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      window._debug(`GET search returned ${res.status} for ${url}`);
-      return [];
-    }
-    const j = await res.json();
-    window._debug(`SEARCH ${sheet} ${field}=${value} -> ${JSON.stringify(j)}`);
-    return Array.isArray(j) ? j : [];
-  } catch (e) {
-    console.error('sheetSearch err', e);
-    window._debug('ERROR sheetSearch: ' + e.message);
-    return [];
-  }
+/* ======================
+  PANEL HTML - TABY
+====================== */
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+
+  document.querySelectorAll('.tabBtn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.tabBtn[onclick="showTab('${name}')"]`).classList.add('active');
 }
 
-// ================= Nick save / update logic (nowy sposób zgodny z 2025) =================
+/* ======================
+  ADMIN - DODAJ MECZ
+====================== */
+function adminDodajMecz() {
+  const a = document.getElementById('adminTeamA').value.trim();
+  const b = document.getElementById('adminTeamB').value.trim();
+  const time = document.getElementById('adminTime').value;
+  const bo = document.getElementById('adminBo').value;
 
-async function createUserIfMissing(userId, nick) {
-  // sprawdź czy user istnieje
-  const found = await sheetSearch('Users', 'UserID', userId);
-  if (found.length === 0) {
-    // utwórz
-    const post = await sheetPost('Users', { UserID: userId, Nick: nick, Role: 'user' });
-    return { created: true, result: post };
-  } else {
-    return { created: false, existing: found[0] };
-  }
+  if (!a || !b || !time) { alert('Wpisz wszystkie dane meczu'); return; }
+
+  const id = 'm' + Date.now();
+  axios.post(API_BASE + '/Mecze', {
+    data: { ID: id, TeamA: a, TeamB: b, Godzina: time, BO: bo, WynikA: '', WynikB: '', Zakończony: 'NIE' }
+  })
+  .then(() => {
+    alert('Mecz dodany!');
+    loadAdminData();
+    loadMecze();
+    document.getElementById('adminTeamA').value = '';
+    document.getElementById('adminTeamB').value = '';
+    document.getElementById('adminTime').value = '';
+  })
+  .catch(err => console.error(err));
 }
 
-async function updateOrCreateUser(userId, nick) {
-  // stara logika: jeśli istnieje, patch; jeśli nie — post
-  const found = await sheetSearch('Users', 'UserID', userId);
-  if (found.length === 0) {
-    window._debug('Użytkownik nie istniał — tworzę nowy');
-    return await sheetPost('Users', { UserID: userId, Nick: nick, Role: 'user' });
-  } else {
-    window._debug('Użytkownik istnieje — aktualizuję nick');
-    return await sheetPatch('Users', { UserID: userId }, { Nick: nick });
-  }
+/* ======================
+  ADMIN - WYPISANIE MECZÓW
+====================== */
+function loadAdminData() {
+  axios.get(API_BASE + '/Mecze')
+    .then(res => {
+      const mecze = res.data || [];
+      const container = document.getElementById('adminMecze');
+      container.innerHTML = '';
+
+      if (mecze.length === 0) { container.innerHTML = '<div class="text-gray-400">Brak meczów</div>'; return; }
+
+      mecze.forEach(m => {
+        const id = m.ID;
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded bg-gray-800 flex gap-2 items-center';
+
+        row.innerHTML = `
+          <div class="flex-1">
+            <strong>${m.TeamA} vs ${m.TeamB}</strong> 
+            <span class="text-gray-400">(${m.Godzina}, ${m.BO})</span>
+          </div>
+          <button class="bg-red-600 px-2 py-1 rounded hover:scale-105 transition-transform" onclick="deleteMecz('${id}')">Usuń</button>
+        `;
+        container.appendChild(row);
+      });
+    })
+    .catch(err => console.error(err));
 }
 
-// ================= DOM events =================
-document.addEventListener('DOMContentLoaded', () => {
-  // podlinkuj przycisk zapisu nicku
-  const b = document.getElementById('saveNickBtn');
-  if (b) b.addEventListener('click', async () => {
-    const nick = document.getElementById('nickInput').value.trim();
-    if (!nick || nick.length < 2) { alert('Nick za krótki'); return; }
-    if (!window.loggedGoogle || !window.loggedGoogle.id) { alert('Brak danych Google'); return; }
+/* ======================
+  ADMIN - USUŃ MECZ
+====================== */
+function deleteMecz(id) {
+  if (!confirm('Na pewno chcesz usunąć mecz?')) return;
+  axios.delete(API_BASE + `/Mecze/${id}`)
+    .then(() => { alert('Mecz usunięty'); loadAdminData(); loadMecze(); })
+    .catch(err => console.error(err));
+}
 
-    document.getElementById('nickDebug').innerText = 'Zapis...';
-    try {
-      const r = await updateOrCreateUser(window.loggedGoogle.id, nick);
-      console.log('updateOrCreateUser result', r);
-      document.getElementById('nickDebug').innerText = 'Nick zapisany';
-      // pokaż main content
-      document.getElementById('nickBox').style.display = 'none';
-      document.getElementById('mainContent').style.display = 'block';
-      document.getElementById('userInfo').innerText = `${nick} (${window.loggedGoogle.email})`;
-      document.getElementById('apiUrl').innerText = API_BASE;
-      window._debug('User saved/updated ok');
-    } catch (e) {
-      console.error('save nick overall err', e);
-      document.getElementById('nickDebug').innerText = 'BŁĄD zapisu nicku (zobacz konsolę)';
-      alert('Błąd zapisu nicku — sprawdź konsolę i debug na stronie.');
-    }
-  });
+/* ======================
+  PANEL - ŁADOWANIE MECZÓW DO TYPÓW
+====================== */
+function loadMecze() {
+  const meczeList = document.getElementById('meczeList');
+  meczeList.innerHTML = '';
 
-  // przycisk: pobierz users (test)
-  window.testListUsers = async function() {
-    document.getElementById('debug').innerText = 'Loading Users...';
-    try {
-      const res = await fetch(`${API_BASE}/Users`);
-      if (!res.ok) {
-        window._debug('GET /Users returned ' + res.status);
-        document.getElementById('debug').innerText = 'GET /Users zwrócił ' + res.status;
-        return;
-      }
-      const j = await res.json();
-      document.getElementById('debug').innerText = JSON.stringify(j, null, 2);
-      window._debug('Users fetched: ' + (j.length||0) + ' rows');
-    } catch (e) {
-      console.error('testListUsers err', e);
-      document.getElementById('debug').innerText = 'ERROR: ' + e.message;
-    }
-  };
+  axios.get(API_BASE + '/Mecze')
+    .then(res => {
+      const mecze = res.data || [];
+      if (mecze.length === 0) { meczeList.innerHTML = 'Brak meczów'; return; }
 
-  // przycisk: utwórz tymczasowego uzytkownika testowego
-  window.testCreateFakeUser = async function() {
-    try {
-      const fakeId = 'test-' + Date.now();
-      const fakeNick = 'testuser-' + (Math.random()*1000|0);
-      const res = await sheetPost('Users', { UserID: fakeId, Nick: fakeNick, Role: 'user' });
-      document.getElementById('debug').innerText = 'Created: ' + JSON.stringify(res);
-    } catch (e) {
-      console.error('testCreateFakeUser err', e);
-      document.getElementById('debug').innerText = 'ERROR (create fake): ' + e.message;
-    }
-  };
-});
+      mecze.forEach(m => {
+        const now = new Date();
+        const matchTime = new Date();
+        const [h, min] = m.Godzina.split(':');
+        matchTime.setHours(h); matchTime.setMinutes(min); matchTime.setSeconds(0);
+
+        const disabled = now >= matchTime ? 'disabled' : '';
+        const card = document.createElement('div');
+        card.className = 'p-3 rounded bg-gray-800 mb-2 flex justify-between items-center';
+
+        card.innerHTML = `
+          <div>
+            <strong>${m.TeamA} vs ${m.TeamB}</strong>
+            <p class="text-gray-400">${m.Godzina} | ${m.BO}</p>
+          </div>
+          <div class="flex gap-2 items-center">
+            <input type="number" min="0" placeholder="A" id="scoreA_${m.ID}" class="p-1 rounded bg-gray-700 border" ${disabled}>
+            <input type="number" min="0" placeholder="B" id="scoreB_${m.ID}" class="p-1 rounded bg-gray-700 border" ${disabled}>
+            <button onclick="submitTyp('${m.ID}')" class="bg-yellow-400 px-3 py-1 rounded hover:scale-105 transition-transform" ${disabled}>Wyślij</button>
+          </div>
+        `;
+        meczeList.appendChild(card);
+      });
+    })
+    .catch(err => console.error(err));
+}
+
+/* ======================
+  WYSYŁANIE TYPU
+====================== */
+function submitTyp(id) {
+  const scoreA = document.getElementById(`scoreA_${id}`).value;
+  const scoreB = document.getElementById(`scoreB_${id}`).value;
+
+  if (scoreA === '' || scoreB === '') { alert('Wprowadź wynik'); return; }
+
+  axios.post(API_BASE + '/Typy', { 
+    data: { Nick: nick, UserID: googleID, ID_meczu: id, Typ_wynikuA: scoreA, Typ_wynikuB: scoreB, Punkty: 0 } 
+  })
+  .then(() => { alert('Typ zapisany'); loadRanking(); })
+  .catch(err => console.error(err));
+}
+
+/* ======================
+  RANKING
+====================== */
+function loadRanking() {
+  const rankingList = document.getElementById('rankingList');
+  rankingList.innerHTML = '';
+
+  axios.get(API_BASE + '/Typy')
+    .then(res => {
+      const typy = res.data || [];
+      const scores = {};
+
+      typy.forEach(t => {
+        scores[t.Nick] = (scores[t.Nick] || 0) + parseInt(t.Punkty || 0);
+      });
+
+      const arr = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      arr.forEach(([n, p], i) => {
+        const el = document.createElement('div');
+        el.className = 'p-2 rounded bg-gray-800 flex justify-between';
+        el.innerHTML = `<span>${i+1}. ${n}</span><span class="text-yellow-400 font-bold">${p} pkt</span>`;
+        rankingList.appendChild(el);
+      });
+    })
+    .catch(err => console.error(err));
+}
+
+/* ======================
+  WYLOGUJ
+====================== */
+function signOut() {
+  localStorage.removeItem('nick');
+  window.location.href = 'index.html';
+}
