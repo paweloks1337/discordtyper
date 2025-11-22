@@ -1,116 +1,44 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <title>Typer CS2 - Logowanie</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Typer CS2 - Logowanie</title>
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #0d0d0d;
-            font-family: Arial, sans-serif;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #loginBox {
-            background: #1b1b1b;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            width: 300px;
-            box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
-        }
-
-        h2 { margin-bottom: 20px; }
-
-        #nickForm {
-            display: none;
-            margin-top: 20px;
-        }
-
-        input {
-            width: 90%;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 8px;
-            border: none;
-        }
-
-        button {
-            width: 95%;
-            margin-top: 15px;
-            padding: 12px;
-            background: yellow;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-    </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="script.js"></script>
+<link rel="stylesheet" href="style.css">
 
 </head>
-<body>
+<body class="flex justify-center items-center h-screen bg-gray-900 text-white">
 
-<div id="loginBox">
-    <h2>Logowanie</h2>
+<div id="loginBox" class="rounded-xl p-8 shadow-xl bg-gray-800 w-80 text-center">
+  <h1 class="text-2xl font-bold mb-4 text-yellow-400">Typer CS2</h1>
 
-    <div id="g_id_onload"
-        data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-        data-context="signin"
-        data-callback="handleLogin"
-        data-auto_prompt="false">
-    </div>
+  <!-- Google Sign-in -->
+  <div id="g_id_onload"
+      data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+      data-context="signin"
+      data-callback="handleLogin"
+      data-auto_prompt="false">
+  </div>
 
-    <div class="g_id_signin"
-        data-type="standard"
-        data-size="large"
-        data-theme="outline"
-        data-text="sign_in_with"
-        data-shape="rectangular"
-        data-logo_alignment="left">
-    </div>
+  <div class="g_id_signin"
+       data-type="standard"
+       data-size="large"
+       data-theme="outline"
+       data-text="sign_in_with"
+       data-shape="rectangular"
+       data-logo_alignment="left">
+  </div>
 
-    <div id="nickForm">
-        <p>Podaj swój nick:</p>
-        <input id="nickInput" placeholder="Twój nick">
-        <button onclick="saveNick()">Zapisz</button>
-    </div>
+  <!-- Ustawienie nicku -->
+  <div id="nickForm" class="mt-4 hidden">
+      <p>Podaj swój nick:</p>
+      <input id="nickInput" class="w-full p-2 rounded mt-2 bg-gray-700 border border-gray-600" placeholder="Twój nick">
+      <button onclick="saveNick()" class="mt-3 w-full p-2 bg-yellow-400 text-gray-900 font-bold rounded hover:scale-105 transition-transform">Zapisz nick</button>
+  </div>
 </div>
-
-<script>
-    let googleData = null;
-
-    function handleLogin(response) {
-        const data = decodeJwt(response.credential);
-        googleData = data;
-
-        document.querySelector(".g_id_signin").style.display = "none";
-        document.getElementById("nickForm").style.display = "block";
-    }
-
-    function decodeJwt(token) {
-        return JSON.parse(atob(token.split('.')[1]));
-    }
-
-    function saveNick() {
-        const nick = document.getElementById("nickInput").value.trim();
-        if (!nick) return alert("Podaj nick!");
-
-        localStorage.setItem("nick", nick);
-        localStorage.setItem("user_email", googleData.email);
-
-        alert("Nick zapisany! 🔥");
-        location.href = "panel.html";
-    }
-</script>
 
 </body>
 </html>
