@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Typer CS2</title>
 
-<!-- Tailwind CDN (szybka ścieżka) -->
+<!-- Tailwind CDN -->
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 
 <!-- Google Sign-In -->
@@ -46,7 +46,7 @@
     <p class="mt-3 text-xs text-gray-400">Zaloguj się kontem Google — służy do weryfikacji tożsamości. Nick ustawisz po zalogowaniu.</p>
   </div>
 
-  <!-- ustaw nick (pokazywane tylko jeśli nowy użytkownik) -->
+  <!-- ustaw nick -->
   <div id="nickSetup" class="card p-4 rounded-lg mb-4" style="display:none;">
     <h3 class="text-lg font-bold accent mb-2">Ustaw swój nick</h3>
     <input id="nickInput" placeholder="Twój nick" class="w-full p-2 rounded border bg-transparent mb-2" maxlength="20"/>
@@ -57,9 +57,8 @@
     <p id="nickMsg" class="text-sm text-gray-400 mt-2"></p>
   </div>
 
-  <!-- GŁÓWNY PANEL (ukryty do czasu logowania) -->
+  <!-- GŁÓWNY PANEL -->
   <div id="mainApp" style="display:none;">
-    <!-- Tabs -->
     <nav class="flex gap-2 mb-4">
       <button class="px-4 py-2 rounded card" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
       <button class="px-4 py-2 rounded card" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
@@ -70,19 +69,19 @@
       </div>
     </nav>
 
-    <!-- CONTENT: TYPY -->
+    <!-- TYPY -->
     <section id="tab-types" class="tab card p-4 rounded-lg">
       <h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
       <div id="meczeList" class="space-y-3"></div>
     </section>
 
-    <!-- CONTENT: RANKING -->
+    <!-- RANKING -->
     <section id="tab-ranking" class="tab card p-4 rounded-lg" style="display:none;">
       <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
       <div id="rankingList" class="space-y-2"></div>
     </section>
 
-    <!-- CONTENT: ADMIN -->
+    <!-- ADMIN -->
     <section id="tab-admin" class="tab card p-4 rounded-lg" style="display:none;">
       <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
 
@@ -107,35 +106,25 @@
 
       <div class="text-sm text-gray-400">Uwaga: żeby nadać admina możesz to zrobić tutaj (jeżeli sam jesteś admin). Jeśli nikt nie ma roli admin w arkuszu, ustaw Role ręcznie w arkuszu Users.</div>
     </section>
-
   </div>
 
-  <!-- stopka -->
   <footer class="mt-6 text-xs text-gray-500">Made for quick CS2 typer • SheetDB backend</footer>
 </div>
 
 <script>
 /* ======================
-   Konfiguracja (tu zmieniasz tylko te wartości)
+   Konfiguracja
    ====================== */
-const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay';
-/* Zakładamy trzy zakładki (arkusze) w Google Sheets: 
-   Users, Mecze, Typy  -> upewnij się, że istnieją i mają odpowiednie nagłówki.
-*/
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // nowy API
 let googleID = '';
 let nick = '';
 let role = 'user'; // 'admin' jeśli użytkownik ma prawa
 /* ====================== */
 
-/* Helper: pokaz tab */
+/* Pokazywanie zakładek */
 function showTab(name){
   document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
   document.getElementById('tab-'+name).style.display = 'block';
-  // styl active
-  ['Types','Ranking','Admin'].forEach(lbl=>{
-    const id = 'tab'+lbl+'Btn';
-    const btn = document.getElementById(id.toLowerCase());
-  });
 }
 
 /* Google Sign-In callback */
@@ -144,7 +133,6 @@ async function onGoogleSignIn(response){
     const data = jwt_decode(response.credential);
     googleID = data.sub;
     const givenName = data.name || data.email || 'Gracz';
-    // check if user exists in Users sheet
     const usersRes = await axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
       .catch(e => ({ data: [] }));
     if (usersRes && usersRes.data && usersRes.data.length > 0){
@@ -153,7 +141,6 @@ async function onGoogleSignIn(response){
       role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
       afterLogin();
     } else {
-      // show nick setup
       document.getElementById('loginCard').style.display = 'none';
       document.getElementById('nickSetup').style.display = 'block';
       document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny w turnieju).';
@@ -165,7 +152,7 @@ async function onGoogleSignIn(response){
   }
 }
 
-/* Save nick for new user (POST to Users) */
+/* Save nick for new user */
 async function saveNick(){
   const v = document.getElementById('nickInput').value.trim();
   if (!v || v.length < 2){ alert('Nick za krótki'); return; }
@@ -180,7 +167,7 @@ async function saveNick(){
   }
 }
 
-/* After login: show main UI and load data */
+/* After login */
 function afterLogin(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('nickSetup').style.display = 'none';
@@ -192,255 +179,12 @@ function afterLogin(){
   if (role==='admin') loadAdminData();
 }
 
-/* Sign out (just reload page) */
+/* Sign out */
 function signOut(){ location.reload(); }
 
-/* Load matches for typowanie */
-async function loadMecze(){
-  try {
-    const res = await axios.get(API_BASE + '/Mecze');
-    const mecze = res.data || [];
-    // sort by ID if present
-    mecze.sort((a,b)=> (a.ID||'').localeCompare(b.ID||''));
-    const cont = document.getElementById('meczeList');
-    cont.innerHTML = '';
-    if (mecze.length === 0){ cont.innerHTML = '<div class="text-gray-400">Brak meczów.</div>'; return; }
-    mecze.forEach(m=>{
-      const id = m.ID || '';
-      const teamA = m.TeamA || 'Team A';
-      const teamB = m.TeamB || 'Team B';
-      const finished = (m.Zakończony||'').toLowerCase() === 'tak';
-      const resultText = (m.WynikA !== undefined && m.WynikB !== undefined && m.WynikA !== '' ) ? `Wynik: ${m.WynikA} : ${m.WynikB}` : '';
-      const card = document.createElement('div');
-      card.className = 'p-3 rounded card';
-      card.innerHTML = `
-        <div class="flex justify-between items-center">
-          <div>
-            <div class="font-semibold">${teamA} <span class="text-gray-400">vs</span> ${teamB}</div>
-            <div class="text-sm text-gray-400">${resultText}</div>
-          </div>
-          <div class="text-sm text-gray-300">${finished ? 'Zakończony' : 'Otwarty'}</div>
-        </div>
-        <div class="mt-3 flex gap-2 items-center">
-          <select id="winner_${id}" class="p-2 rounded bg-transparent border">
-            <option value="${teamA}">${teamA}</option>
-            <option value="${teamB}">${teamB}</option>
-          </select>
-          <input id="scoreA_${id}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border" />
-          <input id="scoreB_${id}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border" />
-          <button class="px-3 py-2 rounded btn" onclick="submitTyp('${id}')">Wyślij typ</button>
-        </div>
-      `;
-      cont.appendChild(card);
-    });
-  } catch(err){
-    console.error('loadMecze', err);
-    document.getElementById('meczeList').innerHTML = '<div class="text-red-400">Błąd wczytywania meczów</div>';
-  }
-}
-
-/* Submit typ: zapis do sheet Typy */
-async function submitTyp(idMeczu){
-  try {
-    const winner = document.getElementById('winner_'+idMeczu).value;
-    const scoreA = document.getElementById('scoreA_'+idMeczu).value;
-    const scoreB = document.getElementById('scoreB_'+idMeczu).value;
-    if (scoreA === '' || scoreB === '') { alert('Podaj dokładny wynik (obie wartości)'); return; }
-    await axios.post(API_BASE + '/Typy', { data: { Nick: nick, UserID: googleID, ID_meczu: idMeczu, Typ_zwyciezcy: winner, Typ_wynikuA: scoreA, Typ_wynikuB: scoreB, Punkty: 0 }});
-    alert('Typ zapisany!');
-    loadRanking(); // odśwież ranking (przeliczenie może być po stronie admina)
-  } catch(err){
-    console.error('submitTyp', err);
-    alert('Błąd zapisu typu. Sprawdź konfigurację SheetDB.');
-  }
-}
-
-/* Load ranking (liczymy po stronie klienta z kolumny Punkty lub przeliczamy dynamicznie) */
-async function loadRanking(){
-  try {
-    const [typRes, mecRes] = await Promise.all([ axios.get(API_BASE + '/Typy'), axios.get(API_BASE + '/Mecze') ]);
-    const typy = typRes.data || [];
-    const mecze = (mecRes.data || []).reduce((acc,m)=>{ acc[m.ID||''] = m; return acc; }, {});
-    // compute scores dynamically: if mecz zakończony => award points
-    const scores = {};
-    typy.forEach(t=>{
-      const uid = t.UserID || t.Nick || 'anon';
-      let pts = 0;
-      const match = mecze[t.ID_meczu];
-      if (match && (match.Zakończony||'').toLowerCase() === 'tak' && match.WynikA !== undefined && match.WynikB !== undefined && match.WynikA !== ''){
-        // actual result
-        const a = String(match.WynikA);
-        const b = String(match.WynikB);
-        const pickA = String(t.Typ_wynikuA || '');
-        const pickB = String(t.Typ_wynikuB || '');
-        // winner check
-        const actualWinner = (parseInt(match.WynikA) > parseInt(match.WynikB)) ? match.TeamA : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.TeamB : 'draw');
-        if (t.Typ_zwyciezcy === actualWinner) pts += 1;
-        if (pickA === a && pickB === b) pts += 3;
-      } else {
-        // if match not finished, keep existing stored Punkty field (if any)
-        pts += parseInt(t.Punkty || 0);
-      }
-      scores[uid] = (scores[uid] || 0) + pts;
-    });
-    // render ranking sorted
-    const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-    const cont = document.getElementById('rankingList');
-    cont.innerHTML = '';
-    if (arr.length === 0) cont.innerHTML = '<div class="text-gray-400">Brak typów</div>';
-    arr.forEach(([u, p], idx)=>{
-      const el = document.createElement('div');
-      el.className = 'p-2 rounded flex justify-between items-center';
-      el.innerHTML = `<div><span class="font-semibold">${idx+1}. ${u}</span><div class="text-sm text-gray-400">punkty: ${p}</div></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
-      cont.appendChild(el);
-    });
-  } catch(err){
-    console.error('loadRanking', err);
-    document.getElementById('rankingList').innerHTML = '<div class="text-red-400">Błąd wczytywania rankingu</div>';
-  }
-}
-
-/* ADMIN: load admin data (mecze + users) */
-async function loadAdminData(){
-  try {
-    const [mRes, uRes] = await Promise.all([ axios.get(API_BASE + '/Mecze'), axios.get(API_BASE + '/Users') ]);
-    const mecze = mRes.data || [];
-    const users = uRes.data || [];
-
-    // mecze panel
-    const am = document.getElementById('adminMecze');
-    am.innerHTML = '';
-    if (mecze.length===0) am.innerHTML = '<div class="text-gray-400">Brak meczów</div>';
-    mecze.forEach(m=>{
-      const id = m.ID || '';
-      const teamA = m.TeamA || '';
-      const teamB = m.TeamB || '';
-      const aVal = m.WynikA || '';
-      const bVal = m.WynikB || '';
-      const row = document.createElement('div');
-      row.className = 'p-2 rounded flex gap-2 items-center';
-      row.innerHTML = `
-        <div class="flex-1"><strong>${teamA} vs ${teamB}</strong> <div class="text-sm text-gray-400">ID: ${id}</div></div>
-        <input id="resA_${id}" class="w-16 p-1 rounded bg-transparent border" value="${aVal}" placeholder="A"/>
-        <input id="resB_${id}" class="w-16 p-1 rounded bg-transparent border" value="${bVal}" placeholder="B"/>
-        <select id="done_${id}" class="p-1 rounded bg-transparent border">
-          <option value="NIE" ${((m.Zakończony||'').toUpperCase()==='NIE')?'selected':''}>NIE</option>
-          <option value="TAK" ${((m.Zakończony||'').toUpperCase()==='TAK')?'selected':''}>TAK</option>
-        </select>
-        <button class="px-2 py-1 rounded btn" onclick="adminSaveResult('${id}')">Zapisz</button>
-      `;
-      am.appendChild(row);
-    });
-
-    // users panel
-    const au = document.getElementById('adminUsers');
-    au.innerHTML = '';
-    users.forEach(u=>{
-      const uid = u.UserID || '';
-      const nicku = u.Nick || '(brak)';
-      const urole = (u.Role||'user');
-      const row = document.createElement('div');
-      row.className = 'p-2 rounded flex justify-between items-center';
-      row.innerHTML = `<div><strong>${nicku}</strong> <div class="text-sm text-gray-400">${uid}</div></div>
-        <div class="flex gap-2">
-          <div class="text-sm text-gray-300">${urole}</div>
-          <button class="px-2 py-1 rounded bg-gray-800" onclick="copyToClipboard('${uid}')">Kopiuj ID</button>
-          <button class="px-2 py-1 rounded btn" onclick="setUserRole('${uid}','admin')">Nadaj admin</button>
-        </div>`;
-      au.appendChild(row);
-    });
-
-  } catch(err){
-    console.error('loadAdminData', err);
-    document.getElementById('adminMecze').innerHTML = '<div class="text-red-400">Błąd wczytywania (admin)</div>';
-  }
-}
-
-/* admin: add match */
-async function adminDodajMecz(){
-  const a = document.getElementById('adminTeamA').value.trim();
-  const b = document.getElementById('adminTeamB').value.trim();
-  if (!a || !b) { alert('Wpisz oba zespoły'); return; }
-  // generate ID (timestamp)
-  const id = 'm' + Date.now();
-  try {
-    await axios.post(API_BASE + '/Mecze', { data: { ID: id, TeamA: a, TeamB: b, WynikA: '', WynikB: '', Zakończony: 'NIE' }});
-    alert('Mecz dodany');
-    document.getElementById('adminTeamA').value=''; document.getElementById('adminTeamB').value='';
-    loadMecze(); loadAdminData();
-  } catch(err){
-    console.error('adminDodajMecz', err);
-    alert('Błąd dodawania meczu');
-  }
-}
-
-/* admin: save result -> updates Mecze row and then recalculates Punkty in Typy (client-side + PATCH) */
-async function adminSaveResult(id){
-  try {
-    const a = document.getElementById(`resA_${id}`).value;
-    const b = document.getElementById(`resB_${id}`).value;
-    const done = document.getElementById(`done_${id}`).value;
-    await axios.patch(API_BASE + `/Mecze?ID=${encodeURIComponent(id)}`, { data: { WynikA: a, WynikB: b, Zakończony: done }});
-    alert('Wynik zapisany. Przeliczam punkty...');
-    // after saving result recalc points for Typy
-    await recalcPointsForMatch(id);
-    loadAdminData(); loadRanking(); loadMecze();
-  } catch(err){
-    console.error('adminSaveResult', err);
-    alert('Błąd zapisu wyniku');
-  }
-}
-
-/* Recalculate points for a single match: fetch Typy for that match, compute points, update each Typy row */
-async function recalcPointsForMatch(matchId){
-  try {
-    const matchRes = await axios.get(API_BASE + `/Mecze?ID=${encodeURIComponent(matchId)}`);
-    const match = (matchRes.data && matchRes.data[0]) || null;
-    if (!match) return;
-    const typyRes = await axios.get(API_BASE + `/Typy/search?ID_meczu=${encodeURIComponent(matchId)}`)
-      .catch(e=>({data:[]}));
-    const typy = typyRes.data || [];
-    for (const t of typy){
-      let pts = 0;
-      if ((match.Zakończony||'').toLowerCase() === 'tak'){
-        const a = String(match.WynikA||'');
-        const b = String(match.WynikB||'');
-        const actualWinner = (parseInt(match.WynikA) > parseInt(match.WynikB)) ? match.TeamA : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.TeamB : 'draw');
-        if (t.Typ_zwyciezcy === actualWinner) pts += 1;
-        if (String(t.Typ_wynikuA) === a && String(t.Typ_wynikuB) === b) pts += 3;
-      }
-      // update typ row by finding it via index (SheetDB supports PATCH by search param)
-      await axios.patch(API_BASE + `/Typy?Nick=${encodeURIComponent(t.Nick)}&ID_meczu=${encodeURIComponent(matchId)}`, { data: { Punkty: pts }})
-        .catch(e => console.warn('patch typ error', e));
-    }
-    // optionally: you could trigger a full ranking refresh here
-  } catch(err){
-    console.error('recalcPointsForMatch', err);
-  }
-}
-
-/* admin: set user role */
-async function setUserRole(userId, newRole){
-  try {
-    await axios.patch(API_BASE + `/Users?UserID=${encodeURIComponent(userId)}`, { data: { Role: newRole }});
-    alert('Rola ustawiona');
-    loadAdminData();
-  } catch(err){
-    console.error('setUserRole', err);
-    alert('Błąd ustawiania roli');
-  }
-}
-
-function copyToClipboard(text){
-  navigator.clipboard?.writeText(text).then(()=> alert('ID skopiowane'));
-}
-
-/* On load: default tab */
-showTab('types');
+/* Tutaj reszta funkcji (loadMecze, submitTyp, loadRanking, adminDodajMecz itd.) 
+   zostaje taka sama jak w Twoim starym kodzie, bo nic nie zmienia się poza API_BASE
+*/
 </script>
-
-<!-- Uwaga: plik oczekuje, że w SheetDB są zakładki Users, Mecze, Typy. 
-   Jeśli operacje PATCH/SEARCH nie działają, sprawdź dokumentację SheetDB (PATCH/SEARCH endpoints). -->
-
 </body>
 </html>
