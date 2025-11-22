@@ -1,32 +1,61 @@
-let nick = '';
+/* Google Sign-In callback */
+async function onGoogleSignIn(response){
+  try {
+    const data = jwt_decode(response.credential);
+    googleID = data.sub;
+    const givenName = data.name || data.email || 'Gracz';
 
-function login() {
-  nick = document.getElementById('nick').value.trim();
-  if (!nick) return alert("Wpisz nick!");
-  document.getElementById('login').classList.add('hidden');
-  document.getElementById('panel').classList.remove('hidden');
-  loadMecze();
-  loadRanking();
+    // Spróbuj znaleźć użytkownika w Users
+    let usersRes = [];
+    try {
+      const res = await axios.get(`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`);
+      usersRes = res.data || [];
+    } catch(err) {
+      console.warn('Users search failed', err);
+      usersRes = [];
+    }
+
+    if(usersRes.length > 0){
+      const u = usersRes[0];
+      nick = u.Nick || givenName;
+      role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
+      afterLogin();
+    } else {
+      // pokaż formularz ustawienia nicku
+      document.getElementById('loginCard').style.display = 'none';
+      document.getElementById('nickSetup').style.display = 'block';
+      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny w turnieju).';
+      document.getElementById('nickInput').value = givenName;
+    }
+
+  } catch(err){
+    console.error('login error', err);
+    alert('Błąd logowania. Sprawdź konsolę.');
+  }
 }
 
-function loadMecze() {
-  // TODO: wczytaj mecze z Google Sheets/SheetDB
-  document.getElementById('mecze').innerHTML = "<p>Mecze załadują się tutaj...</p>";
-}
+/* Zapis nicku (bezpieczny) */
+async function saveNick(){
+  const v = document.getElementById('nickInput').value.trim();
+  if (!v || v.length < 2){ alert('Nick za krótki'); return; }
+  nick = v;
 
-function dodajMecz() {
-  const teamA = document.getElementById('teamA').value;
-  const teamB = document.getElementById('teamB').value;
-  if (!teamA || !teamB) return alert("Wpisz oba zespoły");
-  // TODO: wyślij mecz do Google Sheets
-  alert(`Dodano mecz: ${teamA} vs ${teamB}`);
-}
+  // POST z obsługą pustego arkusza
+  const payload = { data: { UserID: googleID, Nick: nick, Role: 'user' }};
 
-function submitTyp(idMeczu, winner, scoreA, scoreB) {
-  // TODO: wyślij typ użytkownika do Google Sheets
-}
+  try {
+    // SheetDB czasami zwraca 404 jeśli arkusz jest pusty, więc najpierw PATCH z fallback
+    await axios.patch(`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`, payload)
+      .catch(async () => {
+        // jeśli PATCH nie działa, spróbuj POST
+        await axios.post(`${API_BASE}/Users`, payload);
+      });
 
-function loadRanking() {
-  // TODO: wczytaj ranking z Google Sheets
-  document.getElementById('ranking').innerHTML = "<p>Ranking załaduje się tutaj...</p>";
+    document.getElementById('nickSetup').style.display = 'none';
+    afterLogin();
+
+  } catch(err){
+    console.error('saveNick error', err);
+    alert('Błąd zapisu nicku. Sprawdź czy arkusz Users istnieje i czy ma nagłówki: UserID, Nick, Role');
+  }
 }
