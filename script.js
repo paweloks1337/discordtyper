@@ -1,61 +1,106 @@
-/* Google Sign-In callback */
-async function onGoogleSignIn(response){
-  try {
-    const data = jwt_decode(response.credential);
-    googleID = data.sub;
-    const givenName = data.name || data.email || 'Gracz';
+/* ======================
+   ADMIN FUNCTIONS
+====================== */
 
-    // Spróbuj znaleźć użytkownika w Users
-    let usersRes = [];
-    try {
-      const res = await axios.get(`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`);
-      usersRes = res.data || [];
-    } catch(err) {
-      console.warn('Users search failed', err);
-      usersRes = [];
-    }
+/* Load admin data */
+async function loadAdminData(){
+  try{
+    const [mRes,uRes]=await Promise.all([
+      axios.get(`${API_BASE}?sheet=Mecze`),
+      axios.get(`${API_BASE}?sheet=Users`)
+    ]);
+    const mecze=mRes.data||[];
+    const users=uRes.data||[];
 
-    if(usersRes.length > 0){
-      const u = usersRes[0];
-      nick = u.Nick || givenName;
-      role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
-      afterLogin();
-    } else {
-      // pokaż formularz ustawienia nicku
-      document.getElementById('loginCard').style.display = 'none';
-      document.getElementById('nickSetup').style.display = 'block';
-      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny w turnieju).';
-      document.getElementById('nickInput').value = givenName;
-    }
+    // mecze
+    const am=document.getElementById('adminMecze');
+    am.innerHTML='';
+    if(mecze.length===0){ am.innerHTML='<div class="text-gray-400">Brak meczów</div>'; }
+    mecze.forEach(m=>{
+      const id=m.ID||'';
+      const card=document.createElement('div');
+      card.className='p-2 rounded flex gap-2 items-center card';
+      card.innerHTML=`
+        <div class="flex-1">
+          <strong>${m.TeamA} vs ${m.TeamB}</strong> • ${m.Start || ''} • BO${m.BO || '1'}
+        </div>
+        <input id="resA_${id}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikA||''}" placeholder="A"/>
+        <input id="resB_${id}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikB||''}" placeholder="B"/>
+        <select id="done_${id}" class="p-1 rounded bg-transparent border">
+          <option value="NIE" ${(m.Zakończony||'NIE')==='NIE'?'selected':''}>NIE</option>
+          <option value="TAK" ${(m.Zakończony||'NIE')==='TAK'?'selected':''}>TAK</option>
+        </select>
+        <button class="px-2 py-1 rounded btn" onclick="adminSaveResult('${id}')">Zapisz</button>
+        <button class="px-2 py-1 rounded bg-red-600 hover:bg-red-500" onclick="adminUsunMecz('${id}')">Usuń</button>
+      `;
+      am.appendChild(card);
+    });
 
-  } catch(err){
-    console.error('login error', err);
-    alert('Błąd logowania. Sprawdź konsolę.');
-  }
+    // users
+    const au=document.getElementById('adminUsers');
+    au.innerHTML='';
+    users.forEach(u=>{
+      const uid=u.UserID||'';
+      const card=document.createElement('div');
+      card.className='p-2 rounded flex justify-between items-center card';
+      card.innerHTML=`
+        <div><strong>${u.Nick||'(brak)'}</strong> <div class="text-sm text-gray-400">${uid}</div></div>
+        <div class="flex gap-2 items-center">
+          <div class="text-sm text-gray-300">${u.Role||'user'}</div>
+          <button class="px-2 py-1 rounded btn" onclick="setUserRole('${uid}','admin')">Nadaj admin</button>
+        </div>
+      `;
+      au.appendChild(card);
+    });
+
+  }catch(err){ console.error(err); }
 }
 
-/* Zapis nicku (bezpieczny) */
-async function saveNick(){
-  const v = document.getElementById('nickInput').value.trim();
-  if (!v || v.length < 2){ alert('Nick za krótki'); return; }
-  nick = v;
+/* Add match */
+async function adminDodajMecz(){
+  const a=document.getElementById('adminTeamA').value.trim();
+  const b=document.getElementById('adminTeamB').value.trim();
+  const start=document.getElementById('adminStart').value;
+  const bo=document.getElementById('adminBO').value;
+  if(!a||!b||!start){ alert('Wpisz wszystkie dane'); return; }
+  const id='m'+Date.now();
+  try{
+    await axios.post(`${API_BASE}?sheet=Mecze`, { data:{ ID:id, TeamA:a, TeamB:b, WynikA:'', WynikB:'', Zakończony:'NIE', Start:start, BO:bo }});
+    alert('Mecz dodany');
+    document.getElementById('adminTeamA').value='';
+    document.getElementById('adminTeamB').value='';
+    document.getElementById('adminStart').value='';
+    loadMecze(); loadAdminData();
+  }catch(err){ console.error(err); alert('Błąd dodawania meczu'); }
+}
 
-  // POST z obsługą pustego arkusza
-  const payload = { data: { UserID: googleID, Nick: nick, Role: 'user' }};
+/* Save match result */
+async function adminSaveResult(id){
+  try{
+    const a=document.getElementById(`resA_${id}`).value;
+    const b=document.getElementById(`resB_${id}`).value;
+    const done=document.getElementById(`done_${id}`).value;
+    await axios.patch(`${API_BASE}?sheet=Mecze&search.ID=${encodeURIComponent(id)}`, { data:{ WynikA:a, WynikB:b, Zakończony:done }});
+    alert('Zapisano wynik');
+    loadRanking(); loadMecze();
+  }catch(err){ console.error(err); alert('Błąd zapisu wyniku'); }
+}
 
-  try {
-    // SheetDB czasami zwraca 404 jeśli arkusz jest pusty, więc najpierw PATCH z fallback
-    await axios.patch(`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`, payload)
-      .catch(async () => {
-        // jeśli PATCH nie działa, spróbuj POST
-        await axios.post(`${API_BASE}/Users`, payload);
-      });
+/* Delete match */
+async function adminUsunMecz(id){
+  if(!confirm('Na pewno usunąć mecz?')) return;
+  try{
+    await axios.delete(`${API_BASE}?sheet=Mecze&search.ID=${encodeURIComponent(id)}`);
+    alert('Mecz usunięty');
+    loadMecze(); loadAdminData();
+  }catch(err){ console.error(err); alert('Błąd usuwania'); }
+}
 
-    document.getElementById('nickSetup').style.display = 'none';
-    afterLogin();
-
-  } catch(err){
-    console.error('saveNick error', err);
-    alert('Błąd zapisu nicku. Sprawdź czy arkusz Users istnieje i czy ma nagłówki: UserID, Nick, Role');
-  }
+/* Set user role */
+async function setUserRole(userId,newRole){
+  try{
+    await axios.patch(`${API_BASE}?sheet=Users&search.UserID=${encodeURIComponent(userId)}`, { data:{ Role:newRole }});
+    alert('Rola ustawiona');
+    loadAdminData();
+  }catch(err){ console.error(err); alert('Błąd ustawiania roli'); }
 }
