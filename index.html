@@ -17,7 +17,7 @@
 
 <style>
   body { background:#0b0d10; color:#e6e7e8; }
-  .accent { color:#ffd24d; } /* żółty akcent */
+  .accent { color:#ffd24d; }
   .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; }
   .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
 </style>
@@ -59,6 +59,7 @@
 
   <!-- GŁÓWNY PANEL -->
   <div id="mainApp" style="display:none;">
+    <!-- Tabs -->
     <nav class="flex gap-2 mb-4">
       <button class="px-4 py-2 rounded card" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
       <button class="px-4 py-2 rounded card" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
@@ -69,19 +70,19 @@
       </div>
     </nav>
 
-    <!-- TYPY -->
+    <!-- CONTENT: TYPY -->
     <section id="tab-types" class="tab card p-4 rounded-lg">
       <h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
       <div id="meczeList" class="space-y-3"></div>
     </section>
 
-    <!-- RANKING -->
+    <!-- CONTENT: RANKING -->
     <section id="tab-ranking" class="tab card p-4 rounded-lg" style="display:none;">
       <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
       <div id="rankingList" class="space-y-2"></div>
     </section>
 
-    <!-- ADMIN -->
+    <!-- CONTENT: ADMIN -->
     <section id="tab-admin" class="tab card p-4 rounded-lg" style="display:none;">
       <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
 
@@ -104,7 +105,7 @@
         <div id="adminUsers" class="space-y-2"></div>
       </div>
 
-      <div class="text-sm text-gray-400">Uwaga: żeby nadać admina możesz to zrobić tutaj (jeżeli sam jesteś admin). Jeśli nikt nie ma roli admin w arkuszu, ustaw Role ręcznie w arkuszu Users.</div>
+      <div class="text-sm text-gray-400">Uwaga: żeby nadać admina możesz to zrobić tutaj lub ręcznie w arkuszu Users.</div>
     </section>
   </div>
 
@@ -112,79 +113,93 @@
 </div>
 
 <script>
-/* ======================
-   Konfiguracja
-   ====================== */
-const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // nowy API
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay';
 let googleID = '';
 let nick = '';
-let role = 'user'; // 'admin' jeśli użytkownik ma prawa
-/* ====================== */
+let role = 'user';
 
-/* Pokazywanie zakładek */
+/* --- Helper: show tab --- */
 function showTab(name){
   document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
   document.getElementById('tab-'+name).style.display = 'block';
 }
 
-/* Google Sign-In callback */
+/* --- Google Sign-In --- */
 async function onGoogleSignIn(response){
   try {
     const data = jwt_decode(response.credential);
     googleID = data.sub;
     const givenName = data.name || data.email || 'Gracz';
-    const usersRes = await axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
-      .catch(e => ({ data: [] }));
-    if (usersRes && usersRes.data && usersRes.data.length > 0){
-      const u = usersRes.data[0];
+
+    // szukaj usera
+    let usersRes = [];
+    try {
+      const res = await axios.get(`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`);
+      usersRes = res.data || [];
+    } catch(err){ usersRes = []; }
+
+    if(usersRes.length > 0){
+      const u = usersRes[0];
       nick = u.Nick || givenName;
       role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
       afterLogin();
     } else {
-      document.getElementById('loginCard').style.display = 'none';
-      document.getElementById('nickSetup').style.display = 'block';
-      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny w turnieju).';
-      document.getElementById('nickInput').value = givenName;
+      document.getElementById('loginCard').style.display='none';
+      document.getElementById('nickSetup').style.display='block';
+      document.getElementById('nickMsg').textContent='Witaj! Ustaw teraz swój nick.';
+      document.getElementById('nickInput').value=givenName;
     }
-  } catch(err){
-    console.error('login error', err);
-    alert('Błąd logowania: sprawdź konsolę.');
-  }
+  } catch(err){ console.error(err); alert('Błąd logowania'); }
 }
 
-/* Save nick for new user */
+/* --- Save nick safely --- */
 async function saveNick(){
   const v = document.getElementById('nickInput').value.trim();
-  if (!v || v.length < 2){ alert('Nick za krótki'); return; }
+  if(!v || v.length<2){ alert('Nick za krótki'); return; }
   nick = v;
-  try {
-    await axios.post(API_BASE + '/Users', { data: { UserID: googleID, Nick: nick, Role: 'user' }});
-    document.getElementById('nickSetup').style.display = 'none';
+
+  const payload = { data: { UserID: googleID, Nick: nick, Role: 'user' } };
+
+  try{
+    // PATCH first
+    await axios({
+      method:'patch',
+      url:`${API_BASE}/Users/search?UserID=${encodeURIComponent(googleID)}`,
+      headers:{ 'Content-Type':'application/json' },
+      data: payload
+    }).catch(async ()=>{
+      // fallback POST
+      await axios({
+        method:'post',
+        url:`${API_BASE}/Users`,
+        headers:{ 'Content-Type':'application/json' },
+        data: payload
+      });
+    });
+
+    document.getElementById('nickSetup').style.display='none';
     afterLogin();
-  } catch(err){
-    console.error('saveNick err', err);
-    alert('Błąd zapisu nicku. Sprawdź czy masz arkusz Users i czy SheetDB jest poprawnie skonfigurowane.');
-  }
+  } catch(err){ console.error(err); alert('Błąd zapisu nicku. Sprawdź arkusz Users'); }
 }
 
-/* After login */
+/* --- After login --- */
 function afterLogin(){
-  document.getElementById('loginCard').style.display = 'none';
-  document.getElementById('nickSetup').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('userDisplay').textContent = nick + (role==='admin' ? ' (admin)' : '');
+  document.getElementById('loginCard').style.display='none';
+  document.getElementById('nickSetup').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('userDisplay').textContent = nick + (role==='admin'?' (admin)':'');
   showTab('types');
   loadMecze();
   loadRanking();
-  if (role==='admin') loadAdminData();
+  if(role==='admin') loadAdminData();
 }
 
-/* Sign out */
 function signOut(){ location.reload(); }
 
-/* Tutaj reszta funkcji (loadMecze, submitTyp, loadRanking, adminDodajMecz itd.) 
-   zostaje taka sama jak w Twoim starym kodzie, bo nic nie zmienia się poza API_BASE
-*/
+/* --- Pozostałe funkcje (loadMecze, submitTyp, loadRanking, adminDodajMecz itd.) --- */
+/* Tutaj wklejasz pozostały kod z poprzedniego HTML, bo on już działa z nowym SheetDB */
+
 </script>
+
 </body>
 </html>
