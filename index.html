@@ -1,118 +1,132 @@
 <!doctype html>
 <html lang="pl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Typer CS2</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Typer CS2</title>
 
-<!-- Tailwind CDN -->
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- Google Sign-In -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<!-- jwt-decode -->
-<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
-<!-- axios -->
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <!-- Google Sign-In -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-<style>
-  body { background:#0b0d10; color:#e6e7e8; font-family: 'Inter', sans-serif; }
-  .accent { color:#ffd24d; }
-  .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition: transform 0.2s; }
-  .btn:hover { transform: scale(1.05); }
-  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
-  .tab-active { border-bottom: 2px solid #ffd24d; font-weight: 600; }
-</style>
+  <!-- biblioteki -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+
+  <style>
+    body { background:#0b0d10; color:#e6e7e8; font-family:Inter,system-ui,Arial; }
+    .accent { color:#ffd24d; }
+    .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:700; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
+    .tab { display:none; }
+    .tab-active { border-bottom: 2px solid #ffd24d; font-weight:700; }
+    .loader { border:4px solid rgba(255,255,255,0.06); border-top:4px solid #ffd24d; border-radius:50%; width:28px; height:28px; animation:spin 1s linear infinite; margin:auto; }
+    @keyframes spin { to { transform:rotate(360deg);} }
+  </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="p-6">
 
-<div class="w-full max-w-3xl">
+  <div class="max-w-4xl mx-auto">
 
-  <!-- LOGOWANIE -->
-  <div id="loginCard" class="card p-8 rounded-lg text-center mx-auto mb-6">
-    <h1 class="text-4xl font-extrabold accent mb-4">Typer CS2</h1>
-    <p class="text-gray-400 mb-6">Zaloguj się kontem Google — służy do weryfikacji tożsamości</p>
+    <!-- Header -->
+    <header class="mb-6 text-center">
+      <h1 class="text-4xl font-extrabold accent">Typer CS2</h1>
+      <p class="text-sm text-gray-400">Turniejowy typer — logowanie Google • panel admina • blokada typów</p>
+    </header>
 
-    <div id="g_id_onload"
-      data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-      data-context="signin"
-      data-ux_mode="popup"
-      data-callback="onGoogleSignIn">
+    <!-- LOGIN CARD -->
+    <div id="loginCard" class="card p-8 rounded-lg mb-6 text-center">
+      <h2 class="text-2xl font-bold accent mb-3">Zaloguj się</h2>
+      <p class="text-sm text-gray-300 mb-4">Zaloguj się kontem Google — nick ustawisz po zalogowaniu</p>
+
+      <div id="g_id_onload"
+           data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+           data-context="signin"
+           data-ux_mode="popup"
+           data-callback="onGoogleSignIn">
+      </div>
+      <div class="g_id_signin mt-4" data-type="standard" data-size="large" data-theme="outline"></div>
+      <div id="loginDebug" class="text-xs text-gray-500 mt-3"></div>
     </div>
 
-    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
-  </div>
-
-  <!-- NICK SETUP -->
-  <div id="nickSetup" class="card p-8 rounded-lg mx-auto mb-6" style="display:none;">
-    <h2 class="text-2xl font-bold accent mb-4">Ustaw swój nick</h2>
-    <input id="nickInput" placeholder="Twój nick" class="w-full p-3 rounded border bg-transparent mb-4 text-white placeholder-gray-400"/>
-    <div class="flex gap-4 justify-center">
-      <button class="btn px-6 py-2 rounded" onclick="saveNick()">Zapisz nick</button>
-      <button class="px-6 py-2 rounded bg-gray-800 hover:bg-gray-700 transition" onclick="signOut()">Wyloguj</button>
+    <!-- NICK SETUP -->
+    <div id="nickSetup" class="card p-6 rounded-lg mb-6" style="display:none;">
+      <h3 class="text-lg font-bold accent mb-3">Ustaw swój nick</h3>
+      <input id="nickInput" placeholder="Twój nick" class="w-full p-3 rounded border bg-transparent mb-3 text-white" maxlength="30"/>
+      <div class="flex gap-3">
+        <button class="btn px-4 py-2 rounded" onclick="saveNick()">Zapisz nick</button>
+        <button class="px-4 py-2 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+      </div>
+      <p id="nickMsg" class="text-sm text-gray-400 mt-3"></p>
     </div>
-    <p id="nickMsg" class="text-sm text-gray-400 mt-3"></p>
+
+    <!-- APP (po zalogowaniu) -->
+    <div id="mainApp" style="display:none;">
+      <!-- Tabs -->
+      <nav class="flex gap-2 mb-6 border-b border-gray-800 items-center">
+        <button id="tabTypesBtn" class="px-4 py-2 -mb-px tab-active" onclick="showTab('types')">TYPY</button>
+        <button id="tabMatchesBtn" class="px-4 py-2 -mb-px" onclick="showTab('matches')">MECZE</button>
+        <button id="tabRankingBtn" class="px-4 py-2 -mb-px" onclick="showTab('ranking')">RANKING</button>
+        <button id="tabAdminBtn" class="px-4 py-2 -mb-px" onclick="showTab('admin')">PANEL ADMINA</button>
+
+        <div class="ml-auto flex items-center gap-4">
+          <div id="userDisplay" class="text-sm text-gray-300"></div>
+          <button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+        </div>
+      </nav>
+
+      <!-- TYPY -->
+      <section id="tab-types" class="tab card p-6 rounded-lg">
+        <h2 class="text-xl font-bold accent mb-4">Typuj mecze</h2>
+        <div id="meczeList" class="space-y-4">Ładowanie <div class="loader inline-block"></div></div>
+      </section>
+
+      <!-- MECZE (przegląd) -->
+      <section id="tab-matches" class="tab card p-6 rounded-lg" style="display:none;">
+        <h2 class="text-xl font-bold accent mb-4">Mecze</h2>
+        <div id="matchesList" class="space-y-4">Ładowanie <div class="loader inline-block"></div></div>
+      </section>
+
+      <!-- RANKING -->
+      <section id="tab-ranking" class="tab card p-6 rounded-lg" style="display:none;">
+        <h2 class="text-xl font-bold accent mb-4">Ranking</h2>
+        <div id="rankingList" class="space-y-2">Ładowanie <div class="loader inline-block"></div></div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="tab-admin" class="tab card p-6 rounded-lg" style="display:none;">
+        <h2 class="text-xl font-bold accent mb-4">Panel Admina</h2>
+
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Dodaj mecz</h3>
+          <div class="flex gap-2 mb-2">
+            <input id="adminTeam1" placeholder="Team 1" class="p-2 rounded bg-transparent border text-white w-1/3"/>
+            <input id="adminTeam2" placeholder="Team 2" class="p-2 rounded bg-transparent border text-white w-1/3"/>
+            <input id="adminStart" type="datetime-local" class="p-2 rounded bg-transparent border w-1/3"/>
+          </div>
+          <div class="flex gap-2 items-center">
+            <select id="adminBO" class="p-2 rounded bg-transparent border">
+              <option value="BO1">BO1</option>
+              <option value="BO3">BO3</option>
+              <option value="BO5">BO5</option>
+            </select>
+            <button class="btn px-4 py-2 rounded" onclick="adminAddMatch()">Dodaj mecz</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-semibold mb-2">Edycja meczów i użytkowników</h3>
+          <div id="adminArea" class="space-y-3">Ładowanie <div class="loader inline-block"></div></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="mt-6 text-xs text-gray-500 text-center">Made for Typer CS2 • SheetDB backend</footer>
   </div>
 
-  <!-- GŁÓWNY PANEL -->
-  <div id="mainApp" style="display:none;">
-    <!-- Zakładki -->
-    <nav class="flex gap-2 mb-6 border-b border-gray-700">
-      <button class="tab px-4 py-2 card rounded-t tab-active" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
-      <button class="tab px-4 py-2 card rounded-t" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
-      <button class="tab px-4 py-2 card rounded-t" id="tabAdminBtn" onclick="showTab('admin')">PANEL ADMINA</button>
-      <div class="ml-auto flex items-center gap-4">
-        <div id="userDisplay" class="text-sm text-gray-300"></div>
-        <button class="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 transition" onclick="signOut()">Wyloguj</button>
-      </div>
-    </nav>
-
-    <!-- TYPY -->
-    <section id="tab-types" class="tab card p-6 rounded-lg">
-      <h2 class="text-xl font-bold accent mb-4">Typuj mecze</h2>
-      <div id="meczeList" class="space-y-4 text-gray-300">Ładowanie meczów...</div>
-    </section>
-
-    <!-- RANKING -->
-    <section id="tab-ranking" class="tab card p-6 rounded-lg" style="display:none;">
-      <h2 class="text-xl font-bold accent mb-4">Ranking</h2>
-      <div id="rankingList" class="space-y-2 text-gray-300">Ładowanie rankingu...</div>
-    </section>
-
-    <!-- ADMIN -->
-    <section id="tab-admin" class="tab card p-6 rounded-lg" style="display:none;">
-      <h2 class="text-xl font-bold accent mb-4">Panel Admina</h2>
-
-      <div class="mb-6">
-        <h3 class="font-semibold accent mb-2">Dodaj mecz</h3>
-        <div class="flex gap-2 mb-2">
-          <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/3 bg-transparent border text-white"/>
-          <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/3 bg-transparent border text-white"/>
-          <input id="adminTime" type="time" class="p-2 rounded w-1/3 bg-transparent border text-white"/>
-        </div>
-        <div class="flex gap-2">
-          <select id="adminBO" class="p-2 rounded bg-transparent border text-white">
-            <option value="1">BO1</option>
-            <option value="3">BO3</option>
-            <option value="5">BO5</option>
-          </select>
-          <button class="btn px-4 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <h3 class="font-semibold accent mb-2">Mecze (wpisz wynik)</h3>
-        <div id="adminMecze" class="space-y-2 text-gray-300">Ładowanie meczów...</div>
-      </div>
-
-      <div class="mb-4">
-        <h3 class="font-semibold accent mb-2">Użytkownicy</h3>
-        <div id="adminUsers" class="space-y-2 text-gray-300">Ładowanie użytkowników...</div>
-      </div>
-    </section>
-  </div>
-</div>
-
-<footer class="mt-6 text-center text-xs text-gray-500">Made for quick CS2 typer • SheetDB backend</footer>
+  <!-- Podłącz skrypt (external) -->
+  <script src="script.js"></script>
 </body>
 </html>
