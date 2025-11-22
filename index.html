@@ -1,94 +1,71 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typer CS2</title>
 
 <!-- Tailwind CDN -->
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 
 <!-- Google Sign-In -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
 <style>
-  body { background:#0b0d10; color:#e6e7e8; }
-  .accent { color:#ffd24d; } /* żółty akcent */
-  .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition:all 0.2s; }
-  .btn:hover { transform:translateY(-2px); box-shadow:0 4px 10px rgba(255,210,77,0.4); }
-  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
-  .tab { display:none; }
+  body { background: #0b0d10; color: #e6e7e8; }
+  .accent { color: #ffd24d; }
+  .btn { background: linear-gradient(90deg,#ffd24d,#ffcf5c); color: #0b0d10; font-weight: 600; transition: all 0.2s ease; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(255,210,77,0.3); }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.03); transition: all 0.2s ease; }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+  .tab { display: none; }
 </style>
 </head>
 <body class="p-4">
 
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto">
 
   <!-- Nagłówek -->
   <header class="mb-6 text-center">
-    <h1 class="text-4xl font-extrabold accent">Typer CS2</h1>
-    <p class="text-sm text-gray-300 mt-1">Turniejowy typer — logowanie Google • żółte akcenty</p>
+    <h1 class="text-4xl font-extrabold accent mb-2">Typer CS2</h1>
+    <p class="text-gray-400">Turniejowy typer — logowanie Google • żółte akcenty</p>
   </header>
 
   <!-- LOGIN -->
-  <!-- Google Sign-In -->
-<div class="flex justify-center items-center h-screen">
-  <div class="text-center p-6 rounded-lg bg-gray-900 shadow-lg">
-    <h1 class="text-2xl font-bold text-yellow-400 mb-4">Zaloguj się do Typera CS2</h1>
-    
-    <div id="g_id_onload"
-         data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-         data-context="signin"
-         data-ux_mode="popup"
-         data-callback="onGoogleSignIn">
+  <div id="loginCard" class="flex justify-center items-center h-80">
+    <div class="text-center p-6 rounded-lg bg-gray-900 shadow-lg">
+      <h2 class="text-2xl font-bold accent mb-4">Zaloguj się</h2>
+      <div id="g_id_onload"
+           data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+           data-context="signin"
+           data-ux_mode="popup"
+           data-callback="onGoogleSignIn">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
+      <p class="mt-3 text-gray-400 text-sm">Użyj konta Google do weryfikacji tożsamości. Nick ustawisz po zalogowaniu.</p>
     </div>
-    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
-
-    <p class="mt-3 text-gray-400 text-sm">Użyj konta Google do weryfikacji tożsamości. Nick ustawisz po zalogowaniu.</p>
-  </div>
-</div>
-
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
-<script>
-  async function onGoogleSignIn(response) {
-    try {
-      const data = jwt_decode(response.credential);
-      const googleID = data.sub;
-      const name = data.name || data.email || 'Gracz';
-      alert('Zalogowano jako: ' + name + '\nUserID: ' + googleID);
-      // Tutaj możesz wywołać swoją funkcję afterLogin() i dalej ładować UI
-    } catch(e) {
-      console.error('Błąd logowania', e);
-      alert('Błąd logowania. Sprawdź konsolę.');
-    }
-  }
-</script>
-    </div>
-
-    <div class="g_id_signin mt-4" data-type="standard" data-size="large" data-theme="outline"></div>
-
-    <p class="mt-3 text-xs text-gray-400">Zaloguj się kontem Google — służy do weryfikacji tożsamości. Nick ustawisz po zalogowaniu.</p>
   </div>
 
-  <!-- ustaw nick -->
+  <!-- NICK SETUP -->
   <div id="nickSetup" class="card p-6 rounded-lg mb-4" style="display:none;">
-    <h3 class="text-lg font-bold accent mb-2">Ustaw swój nick</h3>
-    <input id="nickInput" placeholder="Twój nick" class="w-full p-2 rounded border bg-transparent mb-2" maxlength="20"/>
-    <div class="flex gap-2">
+    <h3 class="text-xl font-bold accent mb-3">Ustaw swój nick</h3>
+    <input id="nickInput" placeholder="Twój nick" class="w-full p-2 rounded border bg-transparent mb-3" maxlength="20"/>
+    <div class="flex gap-3">
       <button class="btn px-4 py-2 rounded" onclick="saveNick()">Zapisz nick</button>
       <button class="px-4 py-2 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
     </div>
     <p id="nickMsg" class="text-sm text-gray-400 mt-2"></p>
   </div>
 
-  <!-- GŁÓWNY PANEL -->
+  <!-- MAIN APP -->
   <div id="mainApp" style="display:none;">
     <!-- Tabs -->
     <nav class="flex gap-2 mb-4">
-      <button class="px-4 py-2 rounded card" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
-      <button class="px-4 py-2 rounded card" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
-      <button class="px-4 py-2 rounded card" id="tabAdminBtn" onclick="showTab('admin')">PANEL ADMINA</button>
+      <button class="px-4 py-2 rounded card" onclick="showTab('types')">TYPY</button>
+      <button class="px-4 py-2 rounded card" onclick="showTab('ranking')">RANKING</button>
+      <button class="px-4 py-2 rounded card" onclick="showTab('admin')">PANEL ADMINA</button>
       <div class="ml-auto flex items-center gap-3">
         <div id="userDisplay" class="text-sm text-gray-300"></div>
         <button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
@@ -98,55 +75,161 @@
     <!-- CONTENT: TYPY -->
     <section id="tab-types" class="tab card p-4 rounded-lg">
       <h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
-      <div id="meczeList" class="space-y-3">Ładowanie meczów...</div>
+      <div id="meczeList" class="space-y-3"></div>
     </section>
 
     <!-- CONTENT: RANKING -->
     <section id="tab-ranking" class="tab card p-4 rounded-lg">
       <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
-      <div id="rankingList" class="space-y-2">Ładowanie rankingu...</div>
+      <div id="rankingList" class="space-y-2"></div>
     </section>
 
     <!-- CONTENT: ADMIN -->
     <section id="tab-admin" class="tab card p-4 rounded-lg">
       <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
-
+      
+      <!-- Dodaj mecz -->
       <div class="mb-4">
-        <h3 class="font-semibold">Dodaj mecz</h3>
-        <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/2 mr-2 bg-transparent border"/>
-        <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/2 bg-transparent border"/>
-        <input id="adminTime" type="time" class="p-2 rounded w-1/3 bg-transparent border ml-2"/>
-        <select id="adminBO" class="p-2 rounded bg-transparent border ml-2">
-          <option value="1">BO1</option>
-          <option value="3">BO3</option>
-          <option value="5">BO5</option>
+        <h3 class="font-semibold accent mb-1">Dodaj mecz</h3>
+        <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
+        <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
+        <input id="adminTime" type="time" class="p-2 rounded w-1/5 bg-transparent border"/>
+        <select id="adminRounds" class="p-2 rounded bg-transparent border">
+          <option value="BO1">BO1</option>
+          <option value="BO3">BO3</option>
+          <option value="BO5">BO5</option>
         </select>
         <div class="mt-2">
           <button class="btn px-3 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
         </div>
       </div>
 
+      <!-- Mecze do edycji -->
       <div class="mb-4">
-        <h3 class="font-semibold">Mecze (wpisz wynik)</h3>
-        <div id="adminMecze" class="space-y-2">Ładowanie meczów...</div>
+        <h3 class="font-semibold accent mb-2">Mecze (wpisz wynik / usuń)</h3>
+        <div id="adminMecze" class="space-y-2"></div>
       </div>
-
-      <div class="mb-4">
-        <h3 class="font-semibold">Użytkownicy</h3>
-        <div id="adminUsers" class="space-y-2">Ładowanie użytkowników...</div>
-      </div>
-
-      <div class="text-sm text-gray-400">Uwaga: żeby nadać admina możesz to zrobić tutaj lub ręcznie w arkuszu Users.</div>
     </section>
 
   </div>
 
-  <!-- stopka -->
   <footer class="mt-6 text-xs text-gray-500 text-center">Made for quick CS2 typer • SheetDB backend</footer>
 </div>
 
-<!-- script.js -->
-<script src="script.js" defer></script>
+<script>
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay';
+let googleID = '';
+let nick = '';
+let role = 'user';
 
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
+  document.getElementById('tab-'+name).style.display='block';
+}
+
+async function onGoogleSignIn(response){
+  try{
+    const data = jwt_decode(response.credential);
+    googleID = data.sub;
+    const givenName = data.name || data.email || 'Gracz';
+
+    const usersRes = await axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
+      .catch(e=>({data:[]}));
+
+    if(usersRes.data.length > 0){
+      const u = usersRes.data[0];
+      nick = u.Nick || givenName;
+      role = (u.Role && u.Role.toLowerCase()==='admin')?'admin':'user';
+      afterLogin();
+    } else {
+      document.getElementById('loginCard').style.display='none';
+      document.getElementById('nickSetup').style.display='block';
+      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick.';
+      document.getElementById('nickInput').value = givenName;
+    }
+  } catch(err){
+    console.error('login error', err);
+    alert('Błąd logowania. Sprawdź konsolę.');
+  }
+}
+
+async function saveNick(){
+  const v = document.getElementById('nickInput').value.trim();
+  if(!v){ alert('Nick nie może być pusty'); return; }
+  nick = v;
+  try{
+    await axios.post(API_BASE + '/Users', { data: { UserID: googleID, Nick: nick, Role: 'user' }});
+    document.getElementById('nickSetup').style.display='none';
+    afterLogin();
+  } catch(err){
+    console.error('saveNick', err);
+    alert('Błąd zapisu nicku. Sprawdź arkusz Users i SheetDB.');
+  }
+}
+
+function afterLogin(){
+  document.getElementById('loginCard').style.display='none';
+  document.getElementById('nickSetup').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('userDisplay').textContent = nick + (role==='admin'?' (admin)':'');
+  showTab('types');
+  loadMecze();
+}
+
+function signOut(){ location.reload(); }
+
+async function loadMecze(){
+  try{
+    const res = await axios.get(API_BASE + '/Mecze');
+    const mecze = res.data || [];
+    const cont = document.getElementById('meczeList');
+    cont.innerHTML='';
+    if(mecze.length===0){ cont.innerHTML='<div class="text-gray-400">Brak meczów.</div>'; return; }
+
+    mecze.forEach(m=>{
+      const now = new Date();
+      const matchTime = m.Time? new Date('1970-01-01T'+m.Time): null;
+      const editable = !matchTime || now < matchTime;
+
+      const card = document.createElement('div');
+      card.className='p-3 rounded card flex justify-between items-center';
+      card.innerHTML=`
+        <div>
+          <div class="font-semibold">${m.TeamA} vs ${m.TeamB} <span class="text-sm text-gray-400">${m.Rounds||'BO1'}</span></div>
+          <div class="text-sm text-gray-400">Godzina: ${m.Time||'nie ustawiona'}</div>
+        </div>
+        <div class="flex gap-2">
+          <select id="winner_${m.ID}" class="p-2 rounded bg-transparent border" ${!editable?'disabled':''}>
+            <option value="${m.TeamA}">${m.TeamA}</option>
+            <option value="${m.TeamB}">${m.TeamB}</option>
+          </select>
+          <input id="scoreA_${m.ID}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border" ${!editable?'disabled':''}/>
+          <input id="scoreB_${m.ID}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border" ${!editable?'disabled':''}/>
+          <button class="btn px-3 py-2 rounded" onclick="submitTyp('${m.ID}')" ${!editable?'disabled':''}>Wyślij typ</button>
+        </div>
+      `;
+      cont.appendChild(card);
+    });
+  } catch(err){
+    console.error('loadMecze', err);
+    document.getElementById('meczeList').innerHTML='<div class="text-red-400">Błąd wczytywania meczów</div>';
+  }
+}
+
+async function submitTyp(idMeczu){
+  try{
+    const winner = document.getElementById('winner_'+idMeczu).value;
+    const scoreA = document.getElementById('scoreA_'+idMeczu).value;
+    const scoreB = document.getElementById('scoreB_'+idMeczu).value;
+    if(scoreA==='' || scoreB===''){ alert('Podaj dokładny wynik'); return; }
+    await axios.post(API_BASE+'/Typy', { data: { Nick: nick, UserID: googleID, ID_meczu: idMeczu, Typ_zwyciezcy: winner, Typ_wynikuA: scoreA, Typ_wynikuB: scoreB, Punkty: 0 }});
+    alert('Typ zapisany!');
+  } catch(err){
+    console.error('submitTyp', err);
+    alert('Błąd zapisu typu');
+  }
+}
+
+</script>
 </body>
 </html>
