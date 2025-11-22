@@ -31,12 +31,39 @@
   </header>
 
   <!-- LOGIN -->
-  <div id="loginCard" class="card p-6 rounded-lg mb-4 text-center">
+  <!-- Google Sign-In -->
+<div class="flex justify-center items-center h-screen">
+  <div class="text-center p-6 rounded-lg bg-gray-900 shadow-lg">
+    <h1 class="text-2xl font-bold text-yellow-400 mb-4">Zaloguj się do Typera CS2</h1>
+    
     <div id="g_id_onload"
-      data-client_id="TWÓJ_CLIENT_ID_TUTAJ"
-      data-context="signin"
-      data-ux_mode="popup"
-      data-callback="onGoogleSignIn">
+         data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="onGoogleSignIn">
+    </div>
+    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
+
+    <p class="mt-3 text-gray-400 text-sm">Użyj konta Google do weryfikacji tożsamości. Nick ustawisz po zalogowaniu.</p>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+<script>
+  async function onGoogleSignIn(response) {
+    try {
+      const data = jwt_decode(response.credential);
+      const googleID = data.sub;
+      const name = data.name || data.email || 'Gracz';
+      alert('Zalogowano jako: ' + name + '\nUserID: ' + googleID);
+      // Tutaj możesz wywołać swoją funkcję afterLogin() i dalej ładować UI
+    } catch(e) {
+      console.error('Błąd logowania', e);
+      alert('Błąd logowania. Sprawdź konsolę.');
+    }
+  }
+</script>
     </div>
 
     <div class="g_id_signin mt-4" data-type="standard" data-size="large" data-theme="outline"></div>
