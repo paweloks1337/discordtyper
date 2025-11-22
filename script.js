@@ -1,386 +1,418 @@
 /* ======================
-   Konfiguracja
+   KONFIGURACJA
 ====================== */
-const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay';
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // Twój SheetDB endpoint
 let googleID = '';
 let nick = '';
 let role = 'user'; // 'admin' jeśli użytkownik ma prawa
 
 /* ======================
-   Helper: pokaz tab
+   Utility: pokaż zakładkę
 ====================== */
 function showTab(name){
-  document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
-  document.getElementById('tab-'+name).style.display='block';
+  // ukryj wszystkie sekcje tab
+  document.querySelectorAll('section.tab').forEach(s=>s.style.display='none');
 
-  // aktywna zakładka
-  ['Types','Ranking','Admin'].forEach(lbl=>{
-    const btn = document.getElementById('tab'+lbl+'Btn');
-    if (lbl.toLowerCase() === name) btn.classList.add('tab-active');
-    else btn.classList.remove('tab-active');
+  const map = { types: 'tab-types', matches: 'tab-matches', ranking: 'tab-ranking', admin: 'tab-admin' };
+  if (map[name]) document.getElementById(map[name]).style.display = 'block';
+
+  // ustaw active button
+  ['tabTypesBtn','tabMatchesBtn','tabRankingBtn','tabAdminBtn'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('tab-active');
   });
-}
-
-/* ======================
-   Google Sign-In callback
-====================== */
-async function onGoogleSignIn(response){
-  try {
-    const data = jwt_decode(response.credential);
-    googleID = data.sub;
-    const givenName = data.name || data.email || 'Gracz';
-
-    // Sprawdź czy użytkownik istnieje
-    const usersRes = await axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
-      .catch(e => ({ data: [] }));
-
-    if (usersRes && usersRes.data && usersRes.data.length > 0){
-      const u = usersRes.data[0];
-      nick = u.Nick || givenName;
-      role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
-      afterLogin();
-    } else {
-      // pokaz ustaw nick
-      document.getElementById('loginCard').style.display = 'none';
-      document.getElementById('nickSetup').style.display = 'block';
-      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny w turnieju).';
-      document.getElementById('nickInput').value = givenName;
-    }
-  } catch(err){
-    console.error('login error', err);
-    alert('Błąd logowania. Sprawdź konsolę.');
+  const btnMap = { types: 'tabTypesBtn', matches:'tabMatchesBtn', ranking:'tabRankingBtn', admin:'tabAdminBtn' };
+  if (btnMap[name]) {
+    const b = document.getElementById(btnMap[name]);
+    if (b) b.classList.add('tab-active');
   }
 }
 
 /* ======================
-   Save nick
+   Google Sign-In callback
+   wywoływane przez Google button (data-callback="onGoogleSignIn")
+====================== */
+async function onGoogleSignIn(response){
+  console.log('Google callback', response);
+  try {
+    // jwt-decode library użyty w HTML: jwt_decode
+    const data = jwt_decode(response.credential);
+    console.log('JWT decoded', data);
+    googleID = data.sub;
+    const suggestedName = data.name || data.email || 'Gracz';
+
+    // sprawdź czy user istnieje w arkuszu Users
+    const usersRes = await axios.get(`${API_BASE}/Users?UserID=${encodeURIComponent(googleID)}`)
+      .catch(e => ({ data: [] }));
+    console.log('Users search result:', usersRes.data);
+
+    if (usersRes.data && usersRes.data.length > 0){
+      const u = usersRes.data[0];
+      nick = u.Nick || suggestedName;
+      role = (u.Role && u.Role.toLowerCase()==='admin') ? 'admin' : 'user';
+      loginShowApp();
+    } else {
+      // nowy użytkownik -> pokaż ustaw nicku
+      document.getElementById('loginCard').style.display = 'none';
+      document.getElementById('nickSetup').style.display = 'block';
+      document.getElementById('nickMsg').innerText = 'Witaj — ustaw swój nick (unikalny).';
+      document.getElementById('nickInput').value = suggestedName;
+    }
+  } catch(err){
+    console.error('onGoogleSignIn error', err);
+    document.getElementById('loginDebug').innerText = 'Błąd logowania (sprawdź konsolę).';
+  }
+}
+
+/* ======================
+   Save nick (POST lub PATCH)
 ====================== */
 async function saveNick(){
   const v = document.getElementById('nickInput').value.trim();
   if (!v || v.length < 2){ alert('Nick za krótki'); return; }
   nick = v;
   try {
-    await axios.post(API_BASE + '/Users', { data: { UserID: googleID, Nick: nick, Role: 'user' }});
-    document.getElementById('nickSetup').style.display = 'none';
-    afterLogin();
+    // sprawdź czy istnieje
+    const usersRes = await axios.get(`${API_BASE}/Users?UserID=${encodeURIComponent(googleID)}`).catch(()=>({data:[]}));
+    if (usersRes.data && usersRes.data.length > 0){
+      // PATCH istniejącego wiersza
+      await axios.patch(`${API_BASE}/Users?UserID=${encodeURIComponent(googleID)}`, { data: { Nick: nick }});
+    } else {
+      // POST nowego wiersza
+      await axios.post(`${API_BASE}/Users`, { data: { UserID: googleID, Nick: nick, Role: 'user' }});
+    }
+    loginShowApp();
   } catch(err){
     console.error('saveNick err', err);
-    alert('Błąd zapisu nicku. Sprawdź arkusz Users i SheetDB.');
+    alert('Błąd zapisu nicku — sprawdź arkusz Users i konfigurację SheetDB (konsola).');
   }
 }
 
 /* ======================
-   After login
+   Po poprawnym logowaniu - pokaż UI
 ====================== */
-function afterLogin(){
+function loginShowApp(){
   document.getElementById('loginCard').style.display = 'none';
   document.getElementById('nickSetup').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('userDisplay').textContent = nick + (role==='admin' ? ' (admin)' : '');
+  document.getElementById('userDisplay').innerText = nick + (role==='admin' ? ' (admin)' : '');
   showTab('types');
-  loadMecze();
+  loadMatchesForTyping();
+  loadMatchesList();
   loadRanking();
-  if (role==='admin') loadAdminData();
+  if (role === 'admin') loadAdminArea();
 }
 
 /* ======================
-   Sign out
+   Wyloguj (proste reload)
 ====================== */
 function signOut(){ location.reload(); }
 
 /* ======================
-   Load mecze
+   Load matches for typing (TYPY tab)
 ====================== */
-async function loadMecze(){
+async function loadMatchesForTyping(){
+  const cont = document.getElementById('meczeList');
+  if (!cont) return;
+  cont.innerHTML = '<div class="loader inline-block"></div>';
   try {
-    const res = await axios.get(API_BASE + '/Mecze');
-    const mecze = res.data || [];
-    mecze.sort((a,b)=> (a.ID||'').localeCompare(b.ID||''));
-    const cont = document.getElementById('meczeList');
+    const res = await axios.get(`${API_BASE}/Mecze`);
+    const data = res.data || [];
+    // sortuj po StartTime
+    data.sort((a,b) => (a.StartTime||'').localeCompare(b.StartTime||''));
     cont.innerHTML = '';
+    if (data.length === 0){ cont.innerHTML = '<div class="text-gray-400">Brak meczów.</div>'; return; }
 
-    if (mecze.length === 0){ cont.innerHTML = '<div class="text-gray-400">Brak meczów.</div>'; return; }
+    const now = new Date();
+    data.forEach(m => {
+      const id = m.MatchID || '';
+      const t1 = m.Team1 || '';
+      const t2 = m.Team2 || '';
+      const start = m.StartTime || '';
+      const bo = m.BO || 'BO1';
+      const finished = (m.Status||'').toLowerCase() === 'finished';
+      const startDate = start ? new Date(start) : null;
+      const canType = !startDate || now < startDate;
 
-    mecze.forEach(m=>{
-      const id = m.ID || '';
-      const teamA = m.TeamA || 'Team A';
-      const teamB = m.TeamB || 'Team B';
-      const startTime = m.Godzina || '00:00';
-      const finished = (m.Zakończony||'').toLowerCase() === 'tak';
-
-      const now = new Date();
-      const [h, min] = startTime.split(':');
-      const matchDate = new Date();
-      matchDate.setHours(parseInt(h), parseInt(min),0,0);
-
-      const canType = now < matchDate && !finished;
-
-      const resultText = (m.WynikA !== undefined && m.WynikB !== undefined && m.WynikA !== '' ) ? `Wynik: ${m.WynikA} : ${m.WynikB}` : '';
+      const resultText = (m.WynikA !== undefined && m.WynikB !== undefined && m.WynikA !== '') ? `Wynik: ${m.WynikA} : ${m.WynikB}` : '';
 
       const card = document.createElement('div');
-      card.className = 'p-3 rounded card';
-
+      card.className = 'p-3 rounded card flex justify-between items-center';
       card.innerHTML = `
-        <div class="flex justify-between items-center">
-          <div>
-            <div class="font-semibold">${teamA} <span class="text-gray-400">vs</span> ${teamB}</div>
-            <div class="text-sm text-gray-400">Start: ${startTime} ${resultText}</div>
-          </div>
-          <div class="text-sm text-gray-300">${finished ? 'Zakończony' : (canType ? 'Otwarty' : 'Rozpoczęty')}</div>
+        <div>
+          <div class="font-semibold">${escapeHtml(t1)} <span class="text-gray-400">vs</span> ${escapeHtml(t2)} <span class="text-sm text-gray-400">(${escapeHtml(bo)})</span></div>
+          <div class="text-sm text-gray-400">${ start ? new Date(start).toLocaleString() : 'Brak daty' } ${resultText}</div>
         </div>
-        ${canType ? `<div class="mt-3 flex gap-2 items-center">
-          <select id="winner_${id}" class="p-2 rounded bg-transparent border">
-            <option value="${teamA}">${teamA}</option>
-            <option value="${teamB}">${teamB}</option>
-          </select>
-          <input id="scoreA_${id}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border" />
-          <input id="scoreB_${id}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border" />
-          <button class="px-3 py-2 rounded btn" onclick="submitTyp('${id}')">Wyślij typ</button>
-        </div>` : '<div class="mt-2 text-gray-400">Typowanie zamknięte</div>'}
+        <div class="flex gap-2 items-center">
+          ${ canType ? `
+            <select id="pick_${id}" class="p-2 rounded bg-transparent border">
+              <option value="${escapeHtml(t1)}">${escapeHtml(t1)}</option>
+              <option value="${escapeHtml(t2)}">${escapeHtml(t2)}</option>
+            </select>
+            <input id="scoreA_${id}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border"/>
+            <input id="scoreB_${id}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border"/>
+            <button class="btn px-3 py-2 rounded" onclick="submitPick('${id}')">Wyślij</button>
+          ` : `<div class="text-sm text-gray-400">Typowanie zamknięte</div>` }
+        </div>
       `;
       cont.appendChild(card);
     });
+
   } catch(err){
-    console.error('loadMecze', err);
-    document.getElementById('meczeList').innerHTML = '<div class="text-red-400">Błąd wczytywania meczów</div>';
+    console.error('loadMatchesForTyping err', err);
+    cont.innerHTML = '<div class="text-red-400">Błąd wczytywania meczów</div>';
   }
 }
 
 /* ======================
-   Submit typ
+   Submit pick/typ
 ====================== */
-async function submitTyp(idMeczu){
+async function submitPick(matchId){
   try {
-    const winner = document.getElementById('winner_'+idMeczu).value;
-    const scoreA = document.getElementById('scoreA_'+idMeczu).value;
-    const scoreB = document.getElementById('scoreB_'+idMeczu).value;
+    const pickEl = document.getElementById(`pick_${matchId}`);
+    const scoreAEl = document.getElementById(`scoreA_${matchId}`);
+    const scoreBEl = document.getElementById(`scoreB_${matchId}`);
+    if (!pickEl || !scoreAEl || !scoreBEl) { alert('Elementy formularza nie znalezione'); return; }
 
+    const pick = pickEl.value;
+    const scoreA = scoreAEl.value;
+    const scoreB = scoreBEl.value;
     if (scoreA === '' || scoreB === '') { alert('Podaj dokładny wynik (obie wartości)'); return; }
 
-    await axios.post(API_BASE + '/Typy', { data: { 
-      Nick: nick, 
-      UserID: googleID, 
-      ID_meczu: idMeczu, 
-      Typ_zwyciezcy: winner, 
-      Typ_wynikuA: scoreA, 
-      Typ_wynikuB: scoreB, 
-      Punkty: 0 
-    }});
-
-    alert('Typ zapisany!');
+    // zapisz typ
+    await axios.post(`${API_BASE}/Typy`, { data: { MatchID: matchId, UserID: googleID, Pick: pick, ScoreA: scoreA, ScoreB: scoreB, Points: 0 }});
+    alert('Typ zapisany');
     loadRanking();
   } catch(err){
-    console.error('submitTyp', err);
-    alert('Błąd zapisu typu. Sprawdź konfigurację SheetDB.');
+    console.error('submitPick err', err);
+    alert('Błąd zapisu typu (sprawdź SheetDB i konsolę)');
   }
 }
 
 /* ======================
-   Load ranking
+   Matches list (przegląd)
 ====================== */
-async function loadRanking(){
+async function loadMatchesList(){
+  const cont = document.getElementById('matchesList');
+  if (!cont) return;
+  cont.innerHTML = '<div class="loader inline-block"></div>';
   try {
-    const [typRes, mecRes] = await Promise.all([ axios.get(API_BASE + '/Typy'), axios.get(API_BASE + '/Mecze') ]);
-    const typy = typRes.data || [];
-    const mecze = (mecRes.data || []).reduce((acc,m)=>{ acc[m.ID||''] = m; return acc; }, {});
-
-    const scores = {};
-    typy.forEach(t=>{
-      const uid = t.UserID || t.Nick || 'anon';
-      let pts = 0;
-      const match = mecze[t.ID_meczu];
-      if (match && (match.Zakończony||'').toLowerCase() === 'tak'){
-        const a = String(match.WynikA);
-        const b = String(match.WynikB);
-        const pickA = String(t.Typ_wynikuA || '');
-        const pickB = String(t.Typ_wynikuB || '');
-        const actualWinner = (parseInt(match.WynikA) > parseInt(match.WynikB)) ? match.TeamA : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.TeamB : 'draw');
-        if (t.Typ_zwyciezcy === actualWinner) pts += 1;
-        if (pickA === a && pickB === b) pts += 3;
-      }
-      scores[uid] = (scores[uid] || 0) + pts;
-    });
-
-    const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-    const cont = document.getElementById('rankingList');
+    const res = await axios.get(`${API_BASE}/Mecze`);
+    const data = res.data || [];
+    data.sort((a,b) => (a.StartTime||'').localeCompare(b.StartTime||''));
     cont.innerHTML = '';
-    if (arr.length === 0) cont.innerHTML = '<div class="text-gray-400">Brak typów</div>';
-    arr.forEach(([u, p], idx)=>{
+    if (data.length === 0){ cont.innerHTML = '<div class="text-gray-400">Brak meczów.</div>'; return; }
+
+    data.forEach(m=>{
       const el = document.createElement('div');
-      el.className = 'p-2 rounded flex justify-between items-center';
-      el.innerHTML = `<div><span class="font-semibold">${idx+1}. ${u}</span><div class="text-sm text-gray-400">punkty: ${p}</div></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
+      el.className = 'p-3 rounded card flex justify-between items-center';
+      el.innerHTML = `<div><strong>${escapeHtml(m.Team1||'')} vs ${escapeHtml(m.Team2||'')}</strong><div class="text-sm text-gray-400">${m.StartTime || 'brak'} • ${m.BO || 'BO1'}</div></div>
+        <div class="text-sm text-yellow-400">${escapeHtml((m.Status||'').toString()).toUpperCase()}</div>`;
       cont.appendChild(el);
     });
   } catch(err){
-    console.error('loadRanking', err);
-    document.getElementById('rankingList').innerHTML = '<div class="text-red-400">Błąd wczytywania rankingu</div>';
+    console.error('loadMatchesList err', err);
+    cont.innerHTML = '<div class="text-red-400">Błąd wczytywania meczów</div>';
   }
 }
 
 /* ======================
-   ADMIN FUNCTIONS
+   Ranking
 ====================== */
-async function loadAdminData(){
+async function loadRanking(){
+  const cont = document.getElementById('rankingList');
+  if (!cont) return;
+  cont.innerHTML = '<div class="loader inline-block"></div>';
   try {
-    const [mRes, uRes] = await Promise.all([ axios.get(API_BASE + '/Mecze'), axios.get(API_BASE + '/Users') ]);
-    const mecze = mRes.data || [];
-    const users = uRes.data || [];
+    const [tRes,mRes] = await Promise.all([ axios.get(`${API_BASE}/Typy`), axios.get(`${API_BASE}/Mecze`) ]);
+    const typy = tRes.data || [];
+    const mecze = (mRes.data || []).reduce((acc,m)=>{ acc[m.MatchID||''] = m; return acc; }, {});
+    const scores = {};
 
-    // mecze panel
-    const am = document.getElementById('adminMecze');
-    am.innerHTML = '';
-    if (mecze.length===0) am.innerHTML = '<div class="text-gray-400">Brak meczów</div>';
-    mecze.forEach(m=>{
-      const id = m.ID || '';
-      const teamA = m.TeamA || '';
-      const teamB = m.TeamB || '';
-      const startTime = m.Godzina || '00:00';
-      const aVal = m.WynikA || '';
-      const bVal = m.WynikB || '';
-      const row = document.createElement('div');
-      row.className = 'p-2 rounded flex gap-2 items-center';
-      row.innerHTML = `
-        <div class="flex-1"><strong>${teamA} vs ${teamB}</strong> <div class="text-sm text-gray-400">ID: ${id}, Start: ${startTime}</div></div>
-        <input id="resA_${id}" class="w-16 p-1 rounded bg-transparent border" value="${aVal}" placeholder="A"/>
-        <input id="resB_${id}" class="w-16 p-1 rounded bg-transparent border" value="${bVal}" placeholder="B"/>
-        <select id="done_${id}" class="p-1 rounded bg-transparent border">
-          <option value="NIE" ${((m.Zakończony||'').toUpperCase()==='NIE')?'selected':''}>NIE</option>
-          <option value="TAK" ${((m.Zakończony||'').toUpperCase()==='TAK')?'selected':''}>TAK</option>
-        </select>
-        <button class="px-2 py-1 rounded btn" onclick="adminSaveResult('${id}')">Zapisz</button>
-        <button class="px-2 py-1 rounded bg-red-600 hover:bg-red-500 transition" onclick="adminDeleteMatch('${id}')">Usuń</button>
-      `;
-      am.appendChild(row);
+    typy.forEach(t=>{
+      const user = t.UserID || t.Nick || 'anon';
+      let pts = 0;
+      const match = mecze[t.MatchID];
+      if (match && (match.Status||'').toLowerCase() === 'finished'){
+        const a = String(match.WynikA || '');
+        const b = String(match.WynikB || '');
+        // winner points
+        const winner = parseInt(match.WynikA) > parseInt(match.WynikB) ? match.Team1 : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.Team2 : 'draw');
+        if (t.Pick === winner) pts += 1;
+        // exact score
+        if (String(t.ScoreA) === a && String(t.ScoreB) === b) pts += 3;
+      }
+      scores[user] = (scores[user] || 0) + pts;
     });
 
-    // users panel
-    const au = document.getElementById('adminUsers');
-    au.innerHTML = '';
-    users.forEach(u=>{
-      const uid = u.UserID || '';
-      const nicku = u.Nick || '(brak)';
-      const urole = (u.Role||'user');
-      const row = document.createElement('div');
-      row.className = 'p-2 rounded flex justify-between items-center';
-      row.innerHTML = `<div><strong>${nicku}</strong> <div class="text-sm text-gray-400">${uid}</div></div>
-        <div class="flex gap-2">
-          <div class="text-sm text-gray-300">${urole}</div>
-          <button class="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 transition" onclick="copyToClipboard('${uid}')">Kopiuj ID</button>
-          <button class="px-2 py-1 rounded btn" onclick="setUserRole('${uid}','admin')">Nadaj admin</button>
-        </div>`;
-      au.appendChild(row);
+    const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    cont.innerHTML = '';
+    if (arr.length === 0){ cont.innerHTML = '<div class="text-gray-400">Brak typów</div>'; return; }
+    arr.forEach(([u,p],i)=>{
+      const el = document.createElement('div');
+      el.className = 'p-2 rounded flex justify-between items-center';
+      el.innerHTML = `<div>${i+1}. <strong>${escapeHtml(u)}</strong></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
+      cont.appendChild(el);
     });
 
   } catch(err){
-    console.error('loadAdminData', err);
-    document.getElementById('adminMecze').innerHTML = '<div class="text-red-400">Błąd wczytywania (admin)</div>';
+    console.error('loadRanking err', err);
+    cont.innerHTML = '<div class="text-red-400">Błąd wczytywania rankingu</div>';
   }
 }
 
 /* ======================
-   ADMIN: add match
+   Admin area
 ====================== */
-async function adminDodajMecz(){
-  const a = document.getElementById('adminTeamA').value.trim();
-  const b = document.getElementById('adminTeamB').value.trim();
-  const godz = document.getElementById('adminTime').value.trim();
-  const bo = document.getElementById('adminBO').value;
-  if (!a || !b || !godz) { alert('Wpisz wszystkie dane'); return; }
+async function loadAdminArea(){
+  const adminArea = document.getElementById('adminArea');
+  if (!adminArea) return;
+  adminArea.innerHTML = '<div class="loader inline-block"></div>';
+  try {
+    const [mRes,uRes] = await Promise.all([ axios.get(`${API_BASE}/Mecze`), axios.get(`${API_BASE}/Users`) ]);
+    const matches = mRes.data || [];
+    const users = uRes.data || [];
+    adminArea.innerHTML = '';
+
+    // Matches editor
+    matches.forEach(m=>{
+      const row = document.createElement('div');
+      row.className = 'p-2 rounded card flex gap-2 items-center';
+      row.innerHTML = `
+        <div class="flex-1"><strong>${escapeHtml(m.Team1||'')} vs ${escapeHtml(m.Team2||'')}</strong><div class="text-sm text-gray-400">ID: ${escapeHtml(m.MatchID||'')}</div></div>
+        <input id="resA_${m.MatchID}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikA||''}" placeholder="A"/>
+        <input id="resB_${m.MatchID}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikB||''}" placeholder="B"/>
+        <select id="status_${m.MatchID}" class="p-1 rounded bg-transparent border">
+          <option value="open" ${((m.Status||'open')==='open')?'selected':''}>open</option>
+          <option value="finished" ${((m.Status||'')==='finished')?'selected':''}>finished</option>
+        </select>
+        <button class="btn px-2 py-1 rounded" onclick="adminSaveResult('${m.MatchID}')">Zapisz</button>
+        <button class="px-2 py-1 rounded bg-red-600" onclick="adminDeleteMatch('${m.MatchID}')">Usuń</button>
+      `;
+      adminArea.appendChild(row);
+    });
+
+    // Users editor
+    const usersBlock = document.createElement('div');
+    usersBlock.className = 'mt-4';
+    usersBlock.innerHTML = '<h4 class="font-semibold mb-2">Użytkownicy</h4>';
+    users.forEach(u=>{
+      const r = document.createElement('div');
+      r.className = 'p-2 rounded flex justify-between items-center card mb-2';
+      r.innerHTML = `<div><strong>${escapeHtml(u.Nick||'(brak)')}</strong><div class="text-sm text-gray-400">${escapeHtml(u.UserID||'')}</div></div>
+        <div class="flex gap-2 items-center"><div class="text-sm text-gray-300">${escapeHtml(u.Role||'user')}</div>
+        <button class="btn px-2 py-1 rounded" onclick="setUserRole('${encodeURIComponent(u.UserID)}','admin')">Nadaj admin</button></div>`;
+      usersBlock.appendChild(r);
+    });
+    adminArea.appendChild(usersBlock);
+
+  } catch(err){
+    console.error('loadAdminArea err', err);
+    adminArea.innerHTML = '<div class="text-red-400">Błąd wczytywania panelu admina</div>';
+  }
+}
+
+/* ======================
+   Admin actions: add/save/delete
+====================== */
+async function adminAddMatch(){
+  const t1 = document.getElementById('adminTeam1').value.trim();
+  const t2 = document.getElementById('adminTeam2').value.trim();
+  const start = document.getElementById('adminStart').value; // datetime-local format
+  const bo = document.getElementById('adminBO').value || 'BO1';
+  if (!t1 || !t2 || !start){ alert('Wpisz wszystkie dane'); return; }
   const id = 'm' + Date.now();
   try {
-    await axios.post(API_BASE + '/Mecze', { data: { ID: id, TeamA: a, TeamB: b, WynikA:'', WynikB:'', Zakończony:'NIE', Godzina: godz, BO: bo }});
+    await axios.post(`${API_BASE}/Mecze`, { data: { MatchID: id, Team1: t1, Team2: t2, StartTime: start, BO: bo, Status: 'open', WynikA:'', WynikB:'' }});
     alert('Mecz dodany');
-    document.getElementById('adminTeamA').value=''; document.getElementById('adminTeamB').value=''; document.getElementById('adminTime').value='';
-    loadMecze(); loadAdminData();
+    loadMatchesForTyping(); loadMatchesList(); loadAdminArea();
   } catch(err){
-    console.error('adminDodajMecz', err);
+    console.error('adminAddMatch err', err);
     alert('Błąd dodawania meczu');
   }
 }
 
-/* ======================
-   ADMIN: save result
-====================== */
-async function adminSaveResult(id){
+async function adminSaveResult(matchId){
   try {
-    const a = document.getElementById(`resA_${id}`).value;
-    const b = document.getElementById(`resB_${id}`).value;
-    const done = document.getElementById(`done_${id}`).value;
-    await axios.patch(API_BASE + `/Mecze?ID=${encodeURIComponent(id)}`, { data: { WynikA: a, WynikB: b, Zakończony: done }});
-    alert('Wynik zapisany. Przeliczam punkty...');
-    await recalcPointsForMatch(id);
-    loadAdminData(); loadRanking(); loadMecze();
+    const a = document.getElementById(`resA_${matchId}`).value;
+    const b = document.getElementById(`resB_${matchId}`).value;
+    const st = document.getElementById(`status_${matchId}`).value;
+    await axios.patch(`${API_BASE}/Mecze?MatchID=${encodeURIComponent(matchId)}`, { data: { WynikA: a, WynikB: b, Status: st }});
+    alert('Wynik zapisany — przeliczam punkty...');
+    await recalcPointsForMatch(matchId);
+    loadMatchesForTyping(); loadMatchesList(); loadRanking(); loadAdminArea();
   } catch(err){
-    console.error('adminSaveResult', err);
+    console.error('adminSaveResult err', err);
     alert('Błąd zapisu wyniku');
   }
 }
 
-/* ======================
-   ADMIN: delete match
-====================== */
-async function adminDeleteMatch(id){
-  if (!confirm('Na pewno chcesz usunąć ten mecz?')) return;
+async function adminDeleteMatch(matchId){
+  if (!confirm('Na pewno usunąć mecz?')) return;
   try {
-    await axios.delete(API_BASE + `/Mecze?ID=${encodeURIComponent(id)}`);
-    alert('Mecz usunięty');
-    loadMecze(); loadAdminData(); loadRanking();
+    await axios.delete(`${API_BASE}/Mecze?MatchID=${encodeURIComponent(matchId)}`);
+    alert('Usunięto mecz');
+    loadMatchesForTyping(); loadMatchesList(); loadAdminArea(); loadRanking();
   } catch(err){
-    console.error('adminDeleteMatch', err);
+    console.error('adminDeleteMatch err', err);
     alert('Błąd usuwania meczu');
   }
 }
 
 /* ======================
-   Recalculate points
+   Recalculate points for a match
 ====================== */
 async function recalcPointsForMatch(matchId){
   try {
-    const matchRes = await axios.get(API_BASE + `/Mecze?ID=${encodeURIComponent(matchId)}`);
+    const matchRes = await axios.get(`${API_BASE}/Mecze?MatchID=${encodeURIComponent(matchId)}`);
     const match = (matchRes.data && matchRes.data[0]) || null;
     if (!match) return;
 
-    const typyRes = await axios.get(API_BASE + `/Typy/search?ID_meczu=${encodeURIComponent(matchId)}`).catch(e=>({data:[]}));
+    const typyRes = await axios.get(`${API_BASE}/Typy?MatchID=${encodeURIComponent(matchId)}`).catch(()=>({data:[]})); // fetch types for match
     const typy = typyRes.data || [];
+
     for (const t of typy){
       let pts = 0;
-      if ((match.Zakończony||'').toLowerCase() === 'tak'){
+      if ((match.Status||'').toLowerCase() === 'finished'){
         const a = String(match.WynikA||'');
         const b = String(match.WynikB||'');
-        const actualWinner = (parseInt(match.WynikA) > parseInt(match.WynikB)) ? match.TeamA : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.TeamB : 'draw');
-        if (t.Typ_zwyciezcy === actualWinner) pts += 1;
-        if (String(t.Typ_wynikuA) === a && String(t.Typ_wynikuB) === b) pts += 3;
+        const winner = parseInt(match.WynikA) > parseInt(match.WynikB) ? match.Team1 : (parseInt(match.WynikB) > parseInt(match.WynikA) ? match.Team2 : 'draw');
+        if (t.Pick === winner) pts += 1;
+        if (String(t.ScoreA) === a && String(t.ScoreB) === b) pts += 3;
       }
-      await axios.patch(API_BASE + `/Typy?Nick=${encodeURIComponent(t.Nick)}&ID_meczu=${encodeURIComponent(matchId)}`, { data: { Punkty: pts }})
+      // aktualizuj punkty w Typy (PATCH po MatchID i UserID)
+      await axios.patch(`${API_BASE}/Typy?MatchID=${encodeURIComponent(matchId)}&UserID=${encodeURIComponent(t.UserID)}`, { data: { Points: pts }})
         .catch(e => console.warn('patch typ error', e));
     }
   } catch(err){
-    console.error('recalcPointsForMatch', err);
+    console.error('recalcPointsForMatch err', err);
   }
 }
 
 /* ======================
-   Set user role
+   Set user role (admin)
 ====================== */
-async function setUserRole(userId, newRole){
+async function setUserRole(userIdEncoded, newRole){
   try {
-    await axios.patch(API_BASE + `/Users?UserID=${encodeURIComponent(userId)}`, { data: { Role: newRole }});
+    const userId = decodeURIComponent(userIdEncoded);
+    await axios.patch(`${API_BASE}/Users?UserID=${encodeURIComponent(userId)}`, { data: { Role: newRole }});
     alert('Rola ustawiona');
-    loadAdminData();
+    loadAdminArea();
   } catch(err){
-    console.error('setUserRole', err);
+    console.error('setUserRole err', err);
     alert('Błąd ustawiania roli');
   }
 }
 
 /* ======================
-   Copy to clipboard
+   Pomocnicze
 ====================== */
-function copyToClipboard(text){
-  navigator.clipboard?.writeText(text).then(()=> alert('ID skopiowane'));
+function escapeHtml(str){
+  if (!str) return '';
+  return String(str).replace(/[&<>"'`]/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;' }[s]));
 }
 
 /* ======================
-   On load
+   Start - domyślna zakładka
 ====================== */
 showTab('types');
