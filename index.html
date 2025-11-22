@@ -5,174 +5,159 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Typer CS2</title>
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- Google Sign-In -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
 <style>
-  body { background:#0b0d10; color:#e6e7e8; }
-  .accent { color:#ffd24d; }
-  .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; }
-  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
-  .tab-active { border-b-2 border-yellow-400 font-semibold; }
+body { background:#0b0d10; color:#e6e7e8; font-family:sans-serif; }
+.accent { color:#ffd24d; }
+.btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition: transform 0.2s, filter 0.2s; }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); transition: transform 0.2s; }
+.card:hover { transform: translateY(-2px); }
+.tab { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.disabled { opacity:0.5; pointer-events:none; }
+input, select { color:#e6e7e8; }
 </style>
 </head>
+<body class="p-4">
 
-<body class="min-h-screen flex flex-col">
+<div class="max-w-4xl mx-auto">
 
-<div class="flex-1 flex items-center justify-center">
-  <div class="w-full max-w-xl">
+<header class="mb-6 text-center">
+<h1 class="text-4xl font-extrabold accent mb-1">Typer CS2</h1>
+<p class="text-gray-400">Profesjonalny turniejowy typer • Google login</p>
+</header>
 
-    <!-- LOGIN -->
-    <div id="loginCard" class="card p-8 rounded-xl text-center">
-      <h1 class="text-4xl font-extrabold accent mb-4">Typer CS2</h1>
-      <p class="text-gray-400 mb-6">Zaloguj się kontem Google, aby typować mecze CS2</p>
-      <div id="g_id_onload"
-           data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-           data-context="signin"
-           data-ux_mode="popup"
-           data-callback="onGoogleSignIn">
-      </div>
-      <div class="g_id_signin mx-auto" data-type="standard" data-size="large" data-theme="outline"></div>
-    </div>
-
-    <!-- ustaw nick -->
-    <div id="nickSetup" class="card p-6 rounded-xl text-center hidden">
-      <h2 class="text-2xl font-bold accent mb-3">Ustaw swój nick</h2>
-      <input id="nickInput" placeholder="Twój nick" class="w-full p-3 rounded-lg border bg-transparent mb-4 text-center"/>
-      <div class="flex justify-center gap-4">
-        <button class="btn px-6 py-3 rounded-lg" onclick="saveNick()">Zapisz</button>
-        <button class="px-6 py-3 rounded-lg bg-gray-800" onclick="signOut()">Wyloguj</button>
-      </div>
-      <p id="nickMsg" class="text-sm text-gray-400 mt-3"></p>
-    </div>
-
-  </div>
+<!-- LOGIN -->
+<div id="loginCard" class="card p-6 rounded-xl mx-auto max-w-md shadow-lg text-center">
+<div id="g_id_onload"
+  data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+  data-context="signin"
+  data-ux_mode="popup"
+  data-callback="onGoogleSignIn">
+</div>
+<div class="g_id_signin mt-4" data-type="standard" data-size="large" data-theme="outline"></div>
+<p class="mt-3 text-xs text-gray-400">Zaloguj się kontem Google — służy do weryfikacji tożsamości.</p>
 </div>
 
-<!-- GŁÓWNY PANEL -->
-<div id="mainApp" class="hidden flex flex-col min-h-screen">
+<!-- ustaw nick -->
+<div id="nickSetup" class="card p-6 rounded-xl mx-auto max-w-md shadow-lg text-center" style="display:none;">
+<h3 class="text-lg font-bold accent mb-3">Ustaw swój nick</h3>
+<input id="nickInput" placeholder="Twój nick" class="w-full p-3 rounded-lg border border-gray-700 bg-transparent mb-3 text-center" maxlength="20"/>
+<div class="flex justify-center gap-3">
+<button class="btn px-6 py-2 rounded-lg" onclick="saveNick()">Zapisz nick</button>
+<button class="px-6 py-2 rounded-lg bg-gray-800" onclick="signOut()">Wyloguj</button>
+</div>
+<p id="nickMsg" class="text-sm text-gray-400 mt-3"></p>
+</div>
 
-  <!-- TOP NAV -->
-  <nav class="flex items-center justify-between bg-gray-900 p-4 shadow-md">
-    <div class="flex gap-4">
-      <button id="tabTypesBtn" class="tab-btn px-3 py-1 rounded hover:bg-yellow-400 hover:text-black" onclick="showTab('types')">TYPY</button>
-      <button id="tabRankingBtn" class="tab-btn px-3 py-1 rounded hover:bg-yellow-400 hover:text-black" onclick="showTab('ranking')">RANKING</button>
-      <button id="tabAdminBtn" class="tab-btn px-3 py-1 rounded hover:bg-yellow-400 hover:text-black" onclick="showTab('admin')">PANEL ADMINA</button>
-    </div>
-    <div class="flex items-center gap-3">
-      <div id="userDisplay" class="text-gray-300"></div>
-      <button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
-    </div>
-  </nav>
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+<nav class="flex gap-2 mb-4">
+<button class="px-4 py-2 rounded card" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
+<button class="px-4 py-2 rounded card" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
+<button class="px-4 py-2 rounded card" id="tabAdminBtn" onclick="showTab('admin')">PANEL ADMINA</button>
+<div class="ml-auto flex items-center gap-3">
+<div id="userDisplay" class="text-sm text-gray-300"></div>
+<button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+</div>
+</nav>
 
-  <main class="flex-1 p-6 space-y-6">
+<!-- CONTENT: TYPY -->
+<section id="tab-types" class="tab card p-4 rounded-lg">
+<h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
+<div id="meczeList" class="space-y-3"></div>
+</section>
 
-    <!-- TYPY -->
-    <section id="tab-types" class="tab card p-6 rounded-xl">
-      <h2 class="text-2xl font-bold accent mb-4">Typuj mecze</h2>
-      <div id="meczeList" class="space-y-4"></div>
-    </section>
+<!-- CONTENT: RANKING -->
+<section id="tab-ranking" class="tab card p-4 rounded-lg" style="display:none;">
+<h2 class="text-xl font-bold accent mb-3">Ranking</h2>
+<div id="rankingList" class="space-y-2"></div>
+</section>
 
-    <!-- RANKING -->
-    <section id="tab-ranking" class="tab card p-6 rounded-xl hidden">
-      <h2 class="text-2xl font-bold accent mb-4">Ranking</h2>
-      <div id="rankingList" class="space-y-3"></div>
-    </section>
+<!-- CONTENT: ADMIN -->
+<section id="tab-admin" class="tab card p-4 rounded-lg" style="display:none;">
+<h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
 
-    <!-- ADMIN -->
-    <section id="tab-admin" class="tab card p-6 rounded-xl hidden">
-      <h2 class="text-2xl font-bold accent mb-4">Panel Admina</h2>
+<div class="mb-4">
+<h3 class="font-semibold accent">Dodaj mecz</h3>
+<div class="flex flex-col md:flex-row gap-2 mt-2">
+<input id="adminTeamA" placeholder="Team A" class="p-2 rounded border bg-transparent flex-1"/>
+<input id="adminTeamB" placeholder="Team B" class="p-2 rounded border bg-transparent flex-1"/>
+<input id="adminDatetime" type="datetime-local" class="p-2 rounded border bg-transparent flex-1"/>
+<select id="adminBO" class="p-2 rounded border bg-transparent flex-1">
+<option value="BO1">BO1</option>
+<option value="BO3">BO3</option>
+<option value="BO5">BO5</option>
+</select>
+</div>
+<button class="btn mt-2 px-4 py-2 rounded-lg" onclick="adminDodajMecz()">Dodaj mecz</button>
+</div>
 
-      <div class="mb-6">
-        <h3 class="font-semibold mb-2">Dodaj mecz</h3>
-        <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/2 mr-2 bg-transparent border"/>
-        <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/2 bg-transparent border"/>
-        <button class="btn px-4 py-2 rounded mt-2" onclick="adminDodajMecz()">Dodaj mecz</button>
-      </div>
+<div class="mb-4">
+<h3 class="font-semibold accent">Mecze (wyniki / usuń)</h3>
+<div id="adminMecze" class="space-y-2"></div>
+</div>
 
-      <div class="mb-6">
-        <h3 class="font-semibold mb-2">Mecze (wpisz wynik)</h3>
-        <div id="adminMecze" class="space-y-2"></div>
-      </div>
+<div class="mb-4">
+<h3 class="font-semibold accent">Użytkownicy</h3>
+<div id="adminUsers" class="space-y-2"></div>
+</div>
+</section>
 
-      <div>
-        <h3 class="font-semibold mb-2">Użytkownicy</h3>
-        <div id="adminUsers" class="space-y-2"></div>
-      </div>
+</div>
 
-    </section>
-
-  </main>
-
-  <footer class="text-center text-gray-500 p-4 text-sm">Typer CS2 • SheetDB</footer>
+<footer class="mt-6 text-center text-xs text-gray-500">Made for professional CS2 typer • SheetDB backend</footer>
 </div>
 
 <script>
-const API_BASE = 'https://sheetdb.io/api/v1/7gslk5j1lnvg7';
-let googleID = '';
-let nick = '';
-let role = 'user';
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay';
+let googleID='', nick='', role='user';
 
-// Tab handling
 function showTab(name){
-  document.querySelectorAll('.tab').forEach(el=>el.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  document.querySelectorAll('.tab-btn').forEach(btn=>btn.classList.remove('tab-active'));
-  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)+'Btn').classList.add('tab-active');
+  document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
+  document.getElementById('tab-'+name).style.display='block';
 }
 
-// Google login
 async function onGoogleSignIn(response){
-  try {
+  try{
     const data = jwt_decode(response.credential);
     googleID = data.sub;
     const givenName = data.name || data.email || 'Gracz';
-
-    let usersRes = [];
-    try {
-      const res = await axios.get(`${API_BASE}?sheet=Users&search.UserID=${encodeURIComponent(googleID)}`);
-      usersRes = res.data || [];
-    } catch(e){ usersRes = []; }
-
-    if(usersRes.length>0){
-      const u = usersRes[0];
+    const usersRes = await axios.get(`${API_BASE}?sheet=Users&search.UserID=${encodeURIComponent(googleID)}`).catch(()=>({data:[]})); 
+    if(usersRes.data.length>0){
+      const u = usersRes.data[0];
       nick = u.Nick || givenName;
-      role = (u.Role && u.Role.toLowerCase()==='admin')?'admin':'user';
+      role = (u.Role==='admin')?'admin':'user';
       afterLogin();
     } else {
-      document.getElementById('loginCard').classList.add('hidden');
-      document.getElementById('nickSetup').classList.remove('hidden');
-      document.getElementById('nickMsg').textContent='Witaj! Ustaw swój nick';
-      document.getElementById('nickInput').value = givenName;
+      document.getElementById('loginCard').style.display='none';
+      document.getElementById('nickSetup').style.display='block';
+      document.getElementById('nickInput').value=givenName;
+      document.getElementById('nickMsg').textContent='Witaj! Ustaw teraz swój nick.';
     }
   } catch(err){ console.error(err); alert('Błąd logowania'); }
 }
 
-// Save nick
 async function saveNick(){
   const v = document.getElementById('nickInput').value.trim();
   if(!v || v.length<2){ alert('Nick za krótki'); return; }
   nick=v;
-  const payload={data:{UserID:googleID,Nick:nick,Role:'user'}};
-
   try{
-    await axios.patch(`${API_BASE}?sheet=Users&UserID=${encodeURIComponent(googleID)}`,payload)
-    .catch(async()=>await axios.post(`${API_BASE}?sheet=Users`,payload));
-    document.getElementById('nickSetup').classList.add('hidden');
+    await axios.post(`${API_BASE}?sheet=Users`,{data:{UserID:googleID,Nick:nick,Role:'user'}});
+    document.getElementById('nickSetup').style.display='none';
     afterLogin();
   } catch(err){ console.error(err); alert('Błąd zapisu nicku'); }
 }
 
-// After login
 function afterLogin(){
-  document.getElementById('loginCard').classList.add('hidden');
-  document.getElementById('nickSetup').classList.add('hidden');
-  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('loginCard').style.display='none';
+  document.getElementById('nickSetup').style.display='none';
+  document.getElementById('mainApp').style.display='block';
   document.getElementById('userDisplay').textContent=nick+(role==='admin'?' (admin)':'');
   showTab('types');
   loadMecze();
@@ -180,212 +165,194 @@ function afterLogin(){
   if(role==='admin') loadAdminData();
 }
 
-// Logout
 function signOut(){ location.reload(); }
 
-// Load matches for typowanie
+/* ==========================
+   Ładowanie meczów
+========================== */
 async function loadMecze(){
   try{
     const res = await axios.get(`${API_BASE}?sheet=Mecze`);
     const mecze = res.data || [];
+    mecze.sort((a,b)=> new Date(a.Start||0)-new Date(b.Start||0));
     const cont = document.getElementById('meczeList');
     cont.innerHTML='';
-    if(mecze.length===0){ cont.innerHTML='<div class="text-gray-400">Brak meczów</div>'; return; }
+    if(mecze.length===0){ cont.innerHTML='<div class="text-gray-400">Brak meczów.</div>'; return; }
 
     mecze.forEach(m=>{
-      const id=m.ID||'';
-      const teamA=m.TeamA||'Team A';
-      const teamB=m.TeamB||'Team B';
-      const finished=(m.Zakończony||'').toLowerCase()==='tak';
-      const resultText=(m.WynikA!==undefined && m.WynikB!==undefined && m.WynikA!=='')?`Wynik: ${m.WynikA}:${m.WynikB}`:'';
+      const id=m.ID||Date.now()+Math.random();
+      const teamA=m.TeamA||''; const teamB=m.TeamB||'';
+      const startTime = m.Start?new Date(m.Start):null;
+      const now = new Date();
+      const disabled = startTime && now>startTime ? 'disabled' : '';
       const card=document.createElement('div');
       card.className='p-3 rounded card';
       card.innerHTML=`
         <div class="flex justify-between items-center">
           <div>
-            <div class="font-semibold">${teamA} <span class="text-gray-400">vs</span> ${teamB}</div>
-            <div class="text-sm text-gray-400">${resultText}</div>
+            <div class="font-semibold">${teamA} <span class="text-gray-400">vs</span> ${teamB} (${m.BO||'BO1'})</div>
+            <div class="text-sm text-gray-400">${startTime?startTime.toLocaleString():'Brak daty'}</div>
           </div>
-          <div class="text-sm text-gray-300">${finished?'Zakończony':'Otwarty'}</div>
         </div>
-        <div class="mt-3 flex gap-2 items-center">
-          <select id="winner_${id}" class="p-2 rounded bg-transparent border">
+        <div class="mt-2 flex gap-2 items-center">
+          <select id="winner_${id}" class="p-2 rounded bg-transparent border" ${disabled}>
             <option value="${teamA}">${teamA}</option>
             <option value="${teamB}">${teamB}</option>
           </select>
-          <input id="scoreA_${id}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border"/>
-          <input id="scoreB_${id}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border"/>
-          <button class="px-3 py-2 rounded btn" onclick="submitTyp('${id}')">Wyślij typ</button>
+          <input id="scoreA_${id}" type="number" min="0" placeholder="A" class="w-16 p-2 rounded bg-transparent border" ${disabled}/>
+          <input id="scoreB_${id}" type="number" min="0" placeholder="B" class="w-16 p-2 rounded bg-transparent border" ${disabled}/>
+          <button class="px-3 py-2 rounded btn" onclick="submitTyp('${id}','${m.ID}')" ${disabled}>Wyślij typ</button>
         </div>
       `;
       cont.appendChild(card);
     });
-  } catch(err){ console.error(err); document.getElementById('meczeList').innerHTML='<div class="text-red-400">Błąd wczytywania meczów</div>'; }
+  }catch(err){console.error(err);document.getElementById('meczeList').innerHTML='<div class="text-red-400">Błąd wczytywania meczów</div>';}
 }
 
-// Submit typ
-async function submitTyp(idMeczu){
+/* Wyślij typ */
+async function submitTyp(localID, sheetID){
   try{
-    const winner=document.getElementById('winner_'+idMeczu).value;
-    const scoreA=document.getElementById('scoreA_'+idMeczu).value;
-    const scoreB=document.getElementById('scoreB_'+idMeczu).value;
-    if(scoreA===''||scoreB===''){ alert('Podaj wynik'); return; }
-    await axios.post(`${API_BASE}?sheet=Typy`,{data:{Nick:nick,UserID:googleID,ID_meczu:idMeczu,Typ_zwyciezcy:winner,Typ_wynikuA:scoreA,Typ_wynikuB:scoreB,Punkty:0}});
+    const winner = document.getElementById('winner_'+localID).value;
+    const scoreA = document.getElementById('scoreA_'+localID).value;
+    const scoreB = document.getElementById('scoreB_'+localID).value;
+    if(scoreA==='' || scoreB===''){ alert('Podaj wynik'); return; }
+    await axios.post(`${API_BASE}?sheet=Typy`,{data:{UserID:googleID,Nick:nick,ID_meczu:sheetID,Typ_zwyciezcy:winner,Typ_wynikuA:scoreA,Typ_wynikuB:scoreB,Punkty:0}});
     alert('Typ zapisany!');
     loadRanking();
-  } catch(err){ console.error(err); alert('Błąd zapisu typu'); }
+  }catch(err){console.error(err);alert('Błąd zapisu typu');}
 }
 
-// Load ranking
+/* ==========================
+   Ranking
+========================== */
 async function loadRanking(){
   try{
-    const [typRes,mecRes]=await Promise.all([axios.get(`${API_BASE}?sheet=Typy`),axios.get(`${API_BASE}?sheet=Mecze`)]);
+    const [typRes,mRes]=await Promise.all([axios.get(`${API_BASE}?sheet=Typy`),axios.get(`${API_BASE}?sheet=Mecze`)]);
     const typy=typRes.data||[];
-    const mecze=(mecRes.data||[]).reduce((acc,m)=>{acc[m.ID||'']=m;return acc;},{});
+    const mecze={}; mRes.data.forEach(m=>mecze[m.ID]=m);
     const scores={};
     typy.forEach(t=>{
-      const uid=t.UserID||t.Nick||'anon';
+      const uid=t.Nick||t.UserID||'anon';
       let pts=0;
       const match=mecze[t.ID_meczu];
-      if(match&&(match.Zakończony||'').toLowerCase()==='tak' && match.WynikA!==''){
-        const a=String(match.WynikA), b=String(match.WynikB);
-        const pickA=String(t.Typ_wynikuA||''), pickB=String(t.Typ_wynikuB||'');
+      if(match && match.Zakończony==='TAK'){
+        const a=String(match.WynikA||''); const b=String(match.WynikB||'');
+        const pa=String(t.Typ_wynikuA||''); const pb=String(t.Typ_wynikuB||'');
         const actualWinner=(parseInt(match.WynikA)>parseInt(match.WynikB))?match.TeamA:(parseInt(match.WynikB)>parseInt(match.WynikA)?match.TeamB:'draw');
         if(t.Typ_zwyciezcy===actualWinner) pts+=1;
-        if(pickA===a && pickB===b) pts+=3;
+        if(pa===a && pb===b) pts+=3;
       } else pts+=parseInt(t.Punkty||0);
       scores[uid]=(scores[uid]||0)+pts;
     });
     const arr=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-    const cont=document.getElementById('rankingList');
-    cont.innerHTML='';
-    if(arr.length===0) cont.innerHTML='<div class="text-gray-400">Brak typów</div>';
+    const cont=document.getElementById('rankingList'); cont.innerHTML='';
+    if(arr.length===0){cont.innerHTML='<div class="text-gray-400">Brak typów</div>'; return;}
     arr.forEach(([u,p],idx)=>{
       const el=document.createElement('div');
-      el.className='p-2 rounded flex justify-between items-center';
-      el.innerHTML=`<div><span class="font-semibold">${idx+1}. ${u}</span><div class="text-sm text-gray-400">punkty: ${p}</div></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
+      el.className='p-2 rounded flex justify-between items-center card';
+      el.innerHTML=`<div><span class="font-semibold">${idx+1}. ${u}</span></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
       cont.appendChild(el);
     });
-  } catch(err){ console.error(err); document.getElementById('rankingList').innerHTML='<div class="text-red-400">Błąd wczytywania rankingu</div>'; }
+  }catch(err){console.error(err);}
 }
 
-// ADMIN: load data
+/* ==========================
+   Panel admina
+========================== */
 async function loadAdminData(){
   try{
     const [mRes,uRes]=await Promise.all([axios.get(`${API_BASE}?sheet=Mecze`),axios.get(`${API_BASE}?sheet=Users`)]);
-    const mecze=mRes.data||[];
-    const users=uRes.data||[];
-
-    // mecze
+    const mecze=mRes.data||[]; const users=uRes.data||[];
     const am=document.getElementById('adminMecze'); am.innerHTML='';
     if(mecze.length===0) am.innerHTML='<div class="text-gray-400">Brak meczów</div>';
     mecze.forEach(m=>{
-      const id=m.ID||'',teamA=m.TeamA||'',teamB=m.TeamB||'';
-      const aVal=m.WynikA||'',bVal=m.WynikB||'';
+      const id=m.ID;
       const row=document.createElement('div');
-      row.className='p-2 rounded flex gap-2 items-center';
+      row.className='p-2 rounded flex flex-col md:flex-row gap-2 items-center card';
       row.innerHTML=`
-        <div class="flex-1"><strong>${teamA} vs ${teamB}</strong> <div class="text-sm text-gray-400">ID: ${id}</div></div>
-        <input id="resA_${id}" class="w-16 p-1 rounded bg-transparent border" value="${aVal}" placeholder="A"/>
-        <input id="resB_${id}" class="w-16 p-1 rounded bg-transparent border" value="${bVal}" placeholder="B"/>
-        <select id="done_${id}" class="p-1 rounded bg-transparent border">
-          <option value="NIE" ${((m.Zakończony||'').toUpperCase()==='NIE')?'selected':''}>NIE</option>
-          <option value="TAK" ${((m.Zakończony||'').toUpperCase()==='TAK')?'selected':''}>TAK</option>
-        </select>
-        <button class="px-2 py-1 rounded btn" onclick="adminSaveResult('${id}')">Zapisz</button>
-      `;
+      <div class="flex-1"><strong>${m.TeamA} vs ${m.TeamB}</strong> (${m.BO||'BO1'}) <div class="text-sm text-gray-400">${m.Start?new Date(m.Start).toLocaleString():'Brak daty'}</div></div>
+      <input id="resA_${id}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikA||''}" placeholder="A"/>
+      <input id="resB_${id}" class="w-16 p-1 rounded bg-transparent border" value="${m.WynikB||''}" placeholder="B"/>
+      <select id="done_${id}" class="p-1 rounded bg-transparent border">
+        <option value="NIE" ${m.Zakończony==='NIE'?'selected':''}>NIE</option>
+        <option value="TAK" ${m.Zakończony==='TAK'?'selected':''}>TAK</option>
+      </select>
+      <button class="px-2 py-1 rounded btn" onclick="adminSaveResult('${id}')">Zapisz</button>
+      <button class="px-2 py-1 rounded bg-red-600" onclick="adminDeleteMatch('${id}')">Usuń</button>`;
       am.appendChild(row);
     });
-
-    // users
     const au=document.getElementById('adminUsers'); au.innerHTML='';
     users.forEach(u=>{
-      const uid=u.UserID||'',nicku=u.Nick||'(brak)',urole=(u.Role||'user');
+      const uid=u.UserID||''; const nicku=u.Nick||'(brak)'; const urole=u.Role||'user';
       const row=document.createElement('div');
-      row.className='p-2 rounded flex justify-between items-center';
-      row.innerHTML=`<div><strong>${nicku}</strong><div class="text-sm text-gray-400">${uid}</div></div>
-        <div class="flex gap-2">
-          <div class="text-sm text-gray-300">${urole}</div>
-          <button class="px-2 py-1 rounded bg-gray-800" onclick="copyToClipboard('${uid}')">Kopiuj ID</button>
-          <button class="px-2 py-1 rounded btn" onclick="setUserRole('${uid}','admin')">Nadaj admin</button>
-        </div>`;
+      row.className='p-2 rounded flex justify-between items-center card';
+      row.innerHTML=`<div><strong>${nicku}</strong> <div class="text-sm text-gray-400">${uid}</div></div>
+      <div class="flex gap-2">
+      <div class="text-sm text-gray-300">${urole}</div>
+      <button class="px-2 py-1 rounded bg-gray-800" onclick="copyToClipboard('${uid}')">Kopiuj ID</button>
+      <button class="px-2 py-1 rounded btn" onclick="setUserRole('${uid}','admin')">Nadaj admin</button>
+      </div>`;
       au.appendChild(row);
     });
-
-  } catch(err){ 
-    console.error(err); 
-    document.getElementById('adminMecze').innerHTML='<div class="text-red-400">Błąd wczytywania (admin)</div>'; 
-  }
+  }catch(err){console.error(err);}
 }
 
-// Admin: save result
+/* admin: save result */
 async function adminSaveResult(id){
   try{
-    const a=document.getElementById(`resA_${id}`).value;
-    const b=document.getElementById(`resB_${id}`).value;
-    const done=document.getElementById(`done_${id}`).value;
-    await axios.patch(`${API_BASE}?sheet=Mecze&ID=${encodeURIComponent(id)}`,{data:{WynikA:a,WynikB:b,Zakończony:done}});
+    const a = document.getElementById(`resA_${id}`).value;
+    const b = document.getElementById(`resB_${id}`).value;
+    const done = document.getElementById(`done_${id}`).value;
+    await axios.patch(`${API_BASE}?sheet=Mecze&search.ID=${encodeURIComponent(id)}`, { data: { WynikA: a, WynikB: b, Zakończony: done }});
     alert('Wynik zapisany.');
-    await recalcPointsForMatch(id);
-    loadAdminData(); loadRanking(); loadMecze();
+    loadRanking(); loadMecze(); loadAdminData();
   } catch(err){ console.error(err); alert('Błąd zapisu wyniku'); }
 }
 
-// Recalculate points for a match
-async function recalcPointsForMatch(matchId){
+/* admin: delete match */
+async function adminDeleteMatch(id){
+  if(!confirm('Na pewno chcesz usunąć mecz?')) return;
   try{
-    const matchRes = await axios.get(`${API_BASE}?sheet=Mecze&search.ID=${encodeURIComponent(matchId)}`);
-    const match = (matchRes.data && matchRes.data[0])||null;
-    if(!match) return;
-
-    const typyRes = await axios.get(`${API_BASE}?sheet=Typy&search.ID_meczu=${encodeURIComponent(matchId)}`);
-    const typy = typyRes.data||[];
-
-    for(const t of typy){
-      let pts = 0;
-      if((match.Zakończony||'').toLowerCase()==='tak'){
-        const a=String(match.WynikA||''), b=String(match.WynikB||'');
-        const actualWinner=(parseInt(match.WynikA)>parseInt(match.WynikB))?match.TeamA:(parseInt(match.WynikB)>parseInt(match.WynikA)?match.TeamB:'draw');
-        if(t.Typ_zwyciezcy===actualWinner) pts+=1;
-        if(String(t.Typ_wynikuA)===a && String(t.Typ_wynikuB)===b) pts+=3;
-      }
-      await axios.patch(`${API_BASE}?sheet=Typy&Nick=${encodeURIComponent(t.Nick)}&ID_meczu=${encodeURIComponent(matchId)}`,{data:{Punkty:pts}})
-        .catch(e=>console.warn('patch typ error',e));
-    }
-  } catch(err){ console.error('recalcPointsForMatch',err); }
+    await axios.delete(`${API_BASE}?sheet=Mecze&search.ID=${encodeURIComponent(id)}`);
+    alert('Mecz usunięty.');
+    loadMecze(); loadAdminData();
+  } catch(err){ console.error(err); alert('Błąd usuwania meczu'); }
 }
 
-// Set user role
+/* admin: set user role */
 async function setUserRole(userId,newRole){
   try{
-    await axios.patch(`${API_BASE}?sheet=Users&UserID=${encodeURIComponent(userId)}`,{data:{Role:newRole}});
-    alert('Rola ustawiona');
+    await axios.patch(`${API_BASE}?sheet=Users&search.UserID=${encodeURIComponent(userId)}`, { data: { Role: newRole }});
+    alert('Rola ustawiona.');
     loadAdminData();
   } catch(err){ console.error(err); alert('Błąd ustawiania roli'); }
 }
 
-// Copy to clipboard
+/* copy to clipboard */
 function copyToClipboard(text){
-  navigator.clipboard.writeText(text).then(()=>alert('ID skopiowane'));
+  navigator.clipboard.writeText(text).then(()=> alert('ID skopiowane'));
 }
 
-// Admin: add match
+/* add match (admin) */
 async function adminDodajMecz(){
   const a=document.getElementById('adminTeamA').value.trim();
   const b=document.getElementById('adminTeamB').value.trim();
-  if(!a||!b){ alert('Wpisz oba zespoły'); return; }
+  const dt=document.getElementById('adminDatetime').value;
+  const bo=document.getElementById('adminBO').value;
+  if(!a||!b||!dt){ alert('Wpisz oba zespoły i datę/godzinę'); return; }
   const id='m'+Date.now();
   try{
-    await axios.post(`${API_BASE}?sheet=Mecze`,{data:{ID:id,TeamA:a,TeamB:b,WynikA:'',WynikB:'',Zakończony:'NIE'}});
-    alert('Mecz dodany');
-    document.getElementById('adminTeamA').value=''; document.getElementById('adminTeamB').value='';
+    await axios.post(`${API_BASE}?sheet=Mecze`, { data: { ID:id, TeamA:a, TeamB:b, Start:dt, BO:bo, WynikA:'', WynikB:'', Zakończony:'NIE' }});
+    alert('Mecz dodany.');
+    document.getElementById('adminTeamA').value=''; 
+    document.getElementById('adminTeamB').value=''; 
+    document.getElementById('adminDatetime').value='';
     loadMecze(); loadAdminData();
   } catch(err){ console.error(err); alert('Błąd dodawania meczu'); }
 }
 
-// Default tab on load
+/* on page load default tab */
 showTab('types');
 </script>
-
 </body>
 </html>
