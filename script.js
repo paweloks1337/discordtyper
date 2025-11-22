@@ -1,229 +1,293 @@
 /* ======================
-  Konfiguracja SheetDB
+   Konfiguracja
 ====================== */
-const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // Twój nowy SheetDB API
+const API_BASE = 'https://sheetdb.io/api/v1/zwlvogb5fk6ay'; // Twój SheetDB
 let googleID = '';
 let nick = '';
 let role = 'user';
 
 /* ======================
-  LOGOWANIE Google
+   Helper: pokaz tab
 ====================== */
-function handleLogin(response) {
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(el => el.style.display='none');
+  document.getElementById('tab-' + name).style.display='block';
+}
+
+/* ======================
+   Google Sign-In callback
+====================== */
+async function handleLogin(response){
   try {
     const data = jwt_decode(response.credential);
     googleID = data.sub;
     const givenName = data.name || data.email || 'Gracz';
 
-    axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          const u = res.data[0];
-          nick = u.Nick || givenName;
-          role = (u.Role && u.Role.toLowerCase() === 'admin') ? 'admin' : 'user';
-          afterLogin();
-        } else {
-          // nowy użytkownik → ustaw nick
-          document.getElementById('g_id_onload').style.display = 'none';
-          document.getElementById('nickForm').style.display = 'block';
-          document.getElementById('nickInput').value = givenName;
-        }
-      })
-      .catch(err => console.error(err));
-  } catch (err) {
-    console.error('Błąd logowania:', err);
+    const usersRes = await axios.get(`${API_BASE}/search?UserID=${encodeURIComponent(googleID)}`)
+      .catch(() => ({data:[]}));
+    
+    if(usersRes.data.length > 0){
+      const u = usersRes.data[0];
+      nick = u.Nick || givenName;
+      role = (u.Role && u.Role.toLowerCase() === 'admin') ? 'admin' : 'user';
+      afterLogin();
+    } else {
+      document.getElementById('loginCard').style.display = 'none';
+      document.getElementById('nickSetup').style.display = 'block';
+      document.getElementById('nickMsg').textContent = 'Witaj! Ustaw teraz swój nick (unikalny).';
+      document.getElementById('nickInput').value = givenName;
+    }
+  } catch(err){
+    console.error('Login error', err);
+    alert('Błąd logowania. Sprawdź konsolę.');
   }
 }
 
 /* ======================
-  ZAPIS NICKU
+   Save nick (nowy user)
 ====================== */
-function saveNick() {
+async function saveNick(){
   const v = document.getElementById('nickInput').value.trim();
-  if (!v || v.length < 2) { alert('Nick za krótki'); return; }
+  if(!v || v.length < 2){ alert('Nick za krótki'); return; }
   nick = v;
-
-  axios.post(API_BASE + '/Users', { data: { UserID: googleID, Nick: nick, Role: 'user' }})
-    .then(() => {
-      afterLogin();
-    })
-    .catch(err => {
-      console.error('saveNick err', err);
-      alert('Błąd zapisu nicku. Sprawdź arkusz Users i konfigurację SheetDB.');
-    });
+  try {
+    await axios.post(API_BASE + '/Users', {data:{UserID:googleID,Nick:nick,Role:'user'}});
+    document.getElementById('nickSetup').style.display = 'none';
+    afterLogin();
+  } catch(err){
+    console.error('saveNick', err);
+    alert('Błąd zapisu nicku. Sprawdź arkusz Users i SheetDB.');
+  }
 }
 
 /* ======================
-  PO LOGOWANIU
+   After login
 ====================== */
-function afterLogin() {
-  localStorage.setItem('nick', nick);
-  window.location.href = 'panel.html'; // przejście do panelu
+function afterLogin(){
+  document.getElementById('loginCard').style.display = 'none';
+  document.getElementById('nickSetup').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('userDisplay').textContent = nick + (role==='admin'?' (admin)':'');
+  showTab('types');
+  loadMecze();
+  loadRanking();
+  if(role==='admin') loadAdminData();
 }
 
 /* ======================
-  PANEL HTML - TABY
+   Sign out
 ====================== */
-function showTab(name) {
-  document.querySelectorAll('.tab').forEach(el => el.classList.add('hidden'));
-  document.getElementById('tab-' + name).classList.remove('hidden');
-
-  document.querySelectorAll('.tabBtn').forEach(btn => btn.classList.remove('active'));
-  document.querySelector(`.tabBtn[onclick="showTab('${name}')"]`).classList.add('active');
-}
+function signOut(){ location.reload(); }
 
 /* ======================
-  ADMIN - DODAJ MECZ
+   Load mecze
 ====================== */
-function adminDodajMecz() {
-  const a = document.getElementById('adminTeamA').value.trim();
-  const b = document.getElementById('adminTeamB').value.trim();
-  const time = document.getElementById('adminTime').value;
-  const bo = document.getElementById('adminBo').value;
+async function loadMecze(){
+  try {
+    const res = await axios.get(API_BASE + '/Mecze');
+    const mecze = res.data || [];
+    mecze.sort((a,b) => (a.ID||'').localeCompare(b.ID||''));
+    const cont = document.getElementById('meczeList');
+    cont.innerHTML = '';
+    if(mecze.length===0){ cont.innerHTML='<div class="text-gray-400">Brak meczów</div>'; return; }
 
-  if (!a || !b || !time) { alert('Wpisz wszystkie dane meczu'); return; }
+    mecze.forEach(m=>{
+      const id = m.ID;
+      const teamA = m.TeamA;
+      const teamB = m.TeamB;
+      const time = m.Godzina || '';
+      const bo = m.Bo || 'Bo1';
+      const finished = (m.Zakończony||'NIE').toUpperCase() === 'TAK';
+      const card = document.createElement('div');
+      card.className='p-3 rounded card flex flex-col gap-2';
+      const now = new Date();
+      const matchTime = time ? new Date(new Date().toDateString() + ' ' + time) : now;
+      const canType = now < matchTime;
 
-  const id = 'm' + Date.now();
-  axios.post(API_BASE + '/Mecze', {
-    data: { ID: id, TeamA: a, TeamB: b, Godzina: time, BO: bo, WynikA: '', WynikB: '', Zakończony: 'NIE' }
-  })
-  .then(() => {
-    alert('Mecz dodany!');
-    loadAdminData();
-    loadMecze();
-    document.getElementById('adminTeamA').value = '';
-    document.getElementById('adminTeamB').value = '';
-    document.getElementById('adminTime').value = '';
-  })
-  .catch(err => console.error(err));
-}
-
-/* ======================
-  ADMIN - WYPISANIE MECZÓW
-====================== */
-function loadAdminData() {
-  axios.get(API_BASE + '/Mecze')
-    .then(res => {
-      const mecze = res.data || [];
-      const container = document.getElementById('adminMecze');
-      container.innerHTML = '';
-
-      if (mecze.length === 0) { container.innerHTML = '<div class="text-gray-400">Brak meczów</div>'; return; }
-
-      mecze.forEach(m => {
-        const id = m.ID;
-        const row = document.createElement('div');
-        row.className = 'p-2 rounded bg-gray-800 flex gap-2 items-center';
-
-        row.innerHTML = `
-          <div class="flex-1">
-            <strong>${m.TeamA} vs ${m.TeamB}</strong> 
-            <span class="text-gray-400">(${m.Godzina}, ${m.BO})</span>
-          </div>
-          <button class="bg-red-600 px-2 py-1 rounded hover:scale-105 transition-transform" onclick="deleteMecz('${id}')">Usuń</button>
-        `;
-        container.appendChild(row);
-      });
-    })
-    .catch(err => console.error(err));
-}
-
-/* ======================
-  ADMIN - USUŃ MECZ
-====================== */
-function deleteMecz(id) {
-  if (!confirm('Na pewno chcesz usunąć mecz?')) return;
-  axios.delete(API_BASE + `/Mecze/${id}`)
-    .then(() => { alert('Mecz usunięty'); loadAdminData(); loadMecze(); })
-    .catch(err => console.error(err));
-}
-
-/* ======================
-  PANEL - ŁADOWANIE MECZÓW DO TYPÓW
-====================== */
-function loadMecze() {
-  const meczeList = document.getElementById('meczeList');
-  meczeList.innerHTML = '';
-
-  axios.get(API_BASE + '/Mecze')
-    .then(res => {
-      const mecze = res.data || [];
-      if (mecze.length === 0) { meczeList.innerHTML = 'Brak meczów'; return; }
-
-      mecze.forEach(m => {
-        const now = new Date();
-        const matchTime = new Date();
-        const [h, min] = m.Godzina.split(':');
-        matchTime.setHours(h); matchTime.setMinutes(min); matchTime.setSeconds(0);
-
-        const disabled = now >= matchTime ? 'disabled' : '';
-        const card = document.createElement('div');
-        card.className = 'p-3 rounded bg-gray-800 mb-2 flex justify-between items-center';
-
-        card.innerHTML = `
+      card.innerHTML = `
+        <div class="flex justify-between items-center">
           <div>
-            <strong>${m.TeamA} vs ${m.TeamB}</strong>
-            <p class="text-gray-400">${m.Godzina} | ${m.BO}</p>
+            <div class="font-semibold">${teamA} vs ${teamB} <span class="text-gray-400">${bo}</span></div>
+            <div class="text-gray-400">Start: ${time || 'brak'}</div>
+            ${finished ? `<div class="text-gray-400">Wynik: ${m.WynikA}:${m.WynikB}</div>` : ''}
           </div>
-          <div class="flex gap-2 items-center">
-            <input type="number" min="0" placeholder="A" id="scoreA_${m.ID}" class="p-1 rounded bg-gray-700 border" ${disabled}>
-            <input type="number" min="0" placeholder="B" id="scoreB_${m.ID}" class="p-1 rounded bg-gray-700 border" ${disabled}>
-            <button onclick="submitTyp('${m.ID}')" class="bg-yellow-400 px-3 py-1 rounded hover:scale-105 transition-transform" ${disabled}>Wyślij</button>
-          </div>
-        `;
-        meczeList.appendChild(card);
-      });
-    })
-    .catch(err => console.error(err));
+          <div class="text-sm text-gray-300">${finished ? 'Zakończony' : 'Otwarty'}</div>
+        </div>
+      `;
+
+      if(!finished){
+        const sel = document.createElement('select');
+        sel.className='p-2 rounded border bg-transparent';
+        sel.disabled = !canType;
+        sel.id='winner_'+id;
+        sel.innerHTML=`<option value="${teamA}">${teamA}</option><option value="${teamB}">${teamB}</option>`;
+
+        const inpA = document.createElement('input');
+        inpA.type='number'; inpA.min=0; inpA.placeholder='A';
+        inpA.className='w-16 p-2 rounded bg-transparent border';
+        inpA.disabled = !canType;
+        inpA.id='scoreA_'+id;
+
+        const inpB = document.createElement('input');
+        inpB.type='number'; inpB.min=0; inpB.placeholder='B';
+        inpB.className='w-16 p-2 rounded bg-transparent border';
+        inpB.disabled = !canType;
+        inpB.id='scoreB_'+id;
+
+        const btn = document.createElement('button');
+        btn.className='px-3 py-2 rounded btn';
+        btn.disabled = !canType;
+        btn.textContent='Wyślij typ';
+        btn.onclick=()=>submitTyp(id);
+
+        const div = document.createElement('div');
+        div.className='flex gap-2 items-center mt-2';
+        div.appendChild(sel);
+        div.appendChild(inpA);
+        div.appendChild(inpB);
+        div.appendChild(btn);
+        card.appendChild(div);
+      }
+
+      cont.appendChild(card);
+    });
+
+  } catch(err){
+    console.error('loadMecze', err);
+    document.getElementById('meczeList').innerHTML='<div class="text-red-400">Błąd wczytywania meczów</div>';
+  }
 }
 
 /* ======================
-  WYSYŁANIE TYPU
+   Submit typ
 ====================== */
-function submitTyp(id) {
-  const scoreA = document.getElementById(`scoreA_${id}`).value;
-  const scoreB = document.getElementById(`scoreB_${id}`).value;
-
-  if (scoreA === '' || scoreB === '') { alert('Wprowadź wynik'); return; }
-
-  axios.post(API_BASE + '/Typy', { 
-    data: { Nick: nick, UserID: googleID, ID_meczu: id, Typ_wynikuA: scoreA, Typ_wynikuB: scoreB, Punkty: 0 } 
-  })
-  .then(() => { alert('Typ zapisany'); loadRanking(); })
-  .catch(err => console.error(err));
+async function submitTyp(idMeczu){
+  try{
+    const winner = document.getElementById('winner_'+idMeczu).value;
+    const scoreA = document.getElementById('scoreA_'+idMeczu).value;
+    const scoreB = document.getElementById('scoreB_'+idMeczu).value;
+    if(scoreA===''||scoreB===''){ alert('Podaj wynik'); return; }
+    await axios.post(API_BASE + '/Typy',{data:{Nick:nick,UserID:googleID,ID_meczu:idMeczu,Typ_zwyciezcy:winner,Typ_wynikuA:scoreA,Typ_wynikuB:scoreB,Punkty:0}});
+    alert('Typ zapisany!');
+    loadRanking();
+  } catch(err){
+    console.error('submitTyp',err);
+    alert('Błąd zapisu typu');
+  }
 }
 
 /* ======================
-  RANKING
+   Load ranking
 ====================== */
-function loadRanking() {
-  const rankingList = document.getElementById('rankingList');
-  rankingList.innerHTML = '';
-
-  axios.get(API_BASE + '/Typy')
-    .then(res => {
-      const typy = res.data || [];
-      const scores = {};
-
-      typy.forEach(t => {
-        scores[t.Nick] = (scores[t.Nick] || 0) + parseInt(t.Punkty || 0);
-      });
-
-      const arr = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-      arr.forEach(([n, p], i) => {
-        const el = document.createElement('div');
-        el.className = 'p-2 rounded bg-gray-800 flex justify-between';
-        el.innerHTML = `<span>${i+1}. ${n}</span><span class="text-yellow-400 font-bold">${p} pkt</span>`;
-        rankingList.appendChild(el);
-      });
-    })
-    .catch(err => console.error(err));
+async function loadRanking(){
+  try{
+    const [typRes,mecRes] = await Promise.all([axios.get(API_BASE+'/Typy'),axios.get(API_BASE+'/Mecze')]);
+    const typy = typRes.data || [];
+    const mecze = (mecRes.data || []).reduce((acc,m)=>{ acc[m.ID]=m; return acc; },{});
+    const scores = {};
+    typy.forEach(t=>{
+      const uid = t.UserID || t.Nick;
+      let pts=0;
+      const m = mecze[t.ID_meczu];
+      if(m && m.Zakończony==='TAK'){
+        const a=String(m.WynikA), b=String(m.WynikB);
+        const pa=String(t.Typ_wynikuA), pb=String(t.Typ_wynikuB);
+        const winner=(parseInt(m.WynikA)>parseInt(m.WynikB))?m.TeamA:(parseInt(m.WynikB)>parseInt(m.WynikA)?m.TeamB:'draw');
+        if(t.Typ_zwyciezcy===winner) pts+=1;
+        if(pa===a && pb===b) pts+=3;
+      } else {
+        pts+=parseInt(t.Punkty||0);
+      }
+      scores[uid]=(scores[uid]||0)+pts;
+    });
+    const arr=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    const cont=document.getElementById('rankingList');
+    cont.innerHTML='';
+    if(arr.length===0) cont.innerHTML='<div class="text-gray-400">Brak typów</div>';
+    arr.forEach(([u,p],i)=>{
+      const el=document.createElement('div');
+      el.className='p-2 rounded flex justify-between items-center';
+      el.innerHTML=`<div><span class="font-semibold">${i+1}. ${u}</span><div class="text-sm text-gray-400">punkty: ${p}</div></div><div class="text-yellow-400 font-bold">${p} pkt</div>`;
+      cont.appendChild(el);
+    });
+  } catch(err){
+    console.error('loadRanking',err);
+    document.getElementById('rankingList').innerHTML='<div class="text-red-400">Błąd wczytywania rankingu</div>';
+  }
 }
 
 /* ======================
-  WYLOGUJ
+   Admin functions
 ====================== */
-function signOut() {
-  localStorage.removeItem('nick');
-  window.location.href = 'index.html';
+async function loadAdminData(){
+  try{
+    const [mRes,uRes] = await Promise.all([axios.get(API_BASE+'/Mecze'),axios.get(API_BASE+'/Users')]);
+    const mecze=mRes.data||[];
+    const users=uRes.data||[];
+
+    // mecze panel
+    const am=document.getElementById('adminMecze');
+    am.innerHTML='';
+    if(mecze.length===0) am.innerHTML='<div class="text-gray-400">Brak meczów</div>';
+    mecze.forEach(m=>{
+      const row=document.createElement('div');
+      row.className='p-2 rounded flex gap-2 items-center';
+      row.innerHTML=`
+        <div class="flex-1"><strong>${m.TeamA} vs ${m.TeamB}</strong> ${m.Bo||'Bo1'} <div class="text-sm text-gray-400">ID:${m.ID} Godzina:${m.Godzina||'brak'}</div></div>
+        <button class="px-2 py-1 rounded btn" onclick="adminDeleteMecz('${m.ID}')">Usuń</button>
+      `;
+      am.appendChild(row);
+    });
+
+    // users panel
+    const au=document.getElementById('adminUsers');
+    au.innerHTML='';
+    users.forEach(u=>{
+      const row=document.createElement('div');
+      row.className='p-2 rounded flex justify-between items-center';
+      row.innerHTML=`<div><strong>${u.Nick}</strong> <div class="text-sm text-gray-400">${u.UserID}</div></div>
+        <div class="flex gap-2">
+          <div class="text-sm text-gray-300">${u.Role||'user'}</div>
+          <button class="px-2 py-1 rounded btn" onclick="setUserRole('${u.UserID}','admin')">Nadaj admin</button>
+        </div>`;
+      au.appendChild(row);
+    });
+
+  } catch(err){ console.error('loadAdminData',err);}
 }
+
+async function adminDodajMecz(){
+  const teamA=document.getElementById('adminTeamA').value.trim();
+  const teamB=document.getElementById('adminTeamB').value.trim();
+  const godzina=document.getElementById('adminTime').value;
+  const bo=document.getElementById('adminBo').value;
+  if(!teamA||!teamB){alert('Wpisz oba zespoły'); return;}
+  const id='m'+Date.now();
+  try{
+    await axios.post(API_BASE+'/Mecze',{data:{ID:id,TeamA:teamA,TeamB:teamB,WynikA:'',WynikB:'',Zakończony:'NIE',Godzina:godzina,Bo:bo}});
+    alert('Mecz dodany');
+    loadMecze(); loadAdminData();
+  } catch(err){console.error('adminDodajMecz',err); alert('Błąd dodawania meczu');}
+}
+
+async function adminDeleteMecz(id){
+  if(!confirm('Na pewno usunąć mecz?')) return;
+  try{
+    await axios.delete(API_BASE+`/Mecze/${id}`);
+    alert('Mecz usunięty');
+    loadMecze(); loadAdminData();
+  } catch(err){console.error('adminDeleteMecz',err); alert('Błąd usuwania meczu');}
+}
+
+async function setUserRole(uid,role){
+  try{
+    await axios.patch(API_BASE+`/Users?UserID=${encodeURIComponent(uid)}`,{data:{Role:role}});
+    alert('Rola ustawiona');
+    loadAdminData();
+  } catch(err){console.error(err); alert('Błąd ustawiania roli');}
+}
+
+/* ======================
+   Start
+====================== */
+showTab('types');
