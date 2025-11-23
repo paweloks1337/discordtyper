@@ -1,211 +1,81 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Typer CS2 — Lokalny</title>
-
-<!-- Google Sign-In -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-
-<!-- Minimal styles (Tailwind-like quick look) -->
-<style>
-  :root{
-    --bg:#0b0d10; --card:rgba(255,255,255,0.03); --muted:#9aa0a6; --accent:#ffd24d; --accent-dark:#f2b600;
-  }
-  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
-  body{background:var(--bg); color:#e6e7e8; display:flex; align-items:flex-start; justify-content:center; padding:24px;}
-  .app{width:100%; max-width:980px;}
-  header{display:flex;align-items:center;gap:16px; margin-bottom:18px;}
-  h1{font-size:28px;margin:0;color:var(--accent); font-weight:800;}
-  p.lead{margin:0;color:var(--muted);}
-
-  .card{background:var(--card); border:1px solid rgba(255,255,255,0.03); padding:16px; border-radius:12px;}
-  .center{display:flex;align-items:center;justify-content:center;}
-  .hidden{display:none;}
-  .muted{color:var(--muted);}
-
-  /* nav */
-  nav{display:flex;gap:8px;margin-bottom:12px;}
-  .tab-btn{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:8px 12px;border-radius:10px;color:#e6e7e8;cursor:pointer;transition:transform .12s,background .12s;}
-  .tab-btn:hover{transform:translateY(-3px)}
-  .tab-btn.active{background:linear-gradient(90deg,var(--accent),var(--accent-dark)); color:#0b0d10; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,0.4);}
-
-  /* layout */
-  .cols{display:grid; grid-template-columns: 1fr 360px; gap:16px;}
-  .full{grid-column:1/-1;}
-
-  /* match card */
-  .match{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.015),rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.02);}
-  .match .left{display:flex;flex-direction:column;gap:6px}
-  .match .teams{font-weight:700}
-  .small{font-size:13px;color:var(--muted)}
-
-  input[type="number"], input[type="text"], input[type="datetime-local"], select {
-    background:transparent;border:1px solid rgba(255,255,255,0.06); padding:8px;border-radius:8px;color:#e6e7e8;
-  }
-
-  .btn {
-    background:linear-gradient(90deg,var(--accent),var(--accent-dark));
-    color:#0b0d10;border:none;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer;transition:transform .12s, box-shadow .12s;
-  }
-  .btn:active{transform:translateY(1px)}
-  .btn.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.03)}
-  .btn.danger{background:#ff6b6b;color:#111}
-
-  .tiny {font-size:12px;color:var(--muted)}
-  .status-green{color:#4ade80;font-weight:700}
-  .status-red{color:#fb7185;font-weight:700}
-
-  /* ranking */
-  .rank-list{display:flex;flex-direction:column;gap:8px}
-  .rank-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;background:rgba(0,0,0,0.25);}
-
-  /* animations - simple */
-  .fadeIn{animation:fadeIn .25s ease both}
-  @keyframes fadeIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
-
-  /* responsive */
-  @media (max-width:880px){ .cols{grid-template-columns:1fr; } }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typer CS2</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .matchCard { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center; }
+    .matchCard button { transition: all 0.2s; }
+    .matchCard button:hover { transform: scale(1.05); }
+    .status { font-weight: bold; margin-left: 1rem; }
+  </style>
 </head>
-<body>
-  <div class="app">
-    <header>
-      <div>
-        <h1>Typer CS2</h1>
-        <p class="lead">Lokalny typer — logowanie Google • żółte akcenty</p>
-      </div>
-    </header>
+<body class="bg-gray-100 font-sans">
 
-    <!-- LOGIN CARD -->
-    <div id="loginCard" class="card center fadeIn">
-      <div style="width:100%;max-width:520px;text-align:center;">
-        <h2 style="margin:0 0 8px 0">Zaloguj się</h2>
-        <p class="muted" style="margin:0 0 12px 0">Zaloguj konto Google — służy do identyfikacji. Nick ustawisz po raz pierwszy.</p>
+  <!-- LOGIN -->
+  <section id="loginSection" class="flex flex-col items-center justify-center min-h-screen">
+    <h1 class="text-3xl font-bold mb-4">Typer CS2</h1>
+    <p class="mb-4 text-gray-700">Turniejowy typer — logowanie Google</p>
+    <button id="loginBtn" class="bg-blue-500 text-white px-6 py-2 rounded shadow hover:bg-blue-600">Zaloguj przez Google</button>
+  </section>
 
-        <!-- Google Sign-In onload element -->
-        <div id="g_id_onload"
-             data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-             data-context="signin"
-             data-ux_mode="popup"
-             data-callback="onGoogleSignIn">
-        </div>
-        <div style="margin-top:12px" class="g_id_signin" data-type="standard" data-size="large"></div>
-
-        <p class="tiny" style="margin-top:10px">Jeśli używasz lokalnego pliku: uruchom stronę przez serwer (GitHub Pages lub `python -m http.server`).</p>
-      </div>
+  <!-- APP -->
+  <section id="appSection" class="hidden p-6">
+    <div class="flex justify-between items-center mb-4">
+      <span id="userLabel" class="font-bold text-lg"></span>
+      <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Wyloguj</button>
     </div>
 
-    <!-- NICK SETUP -->
-    <div id="nickCard" class="card hidden fadeIn" style="margin-top:12px;">
-      <h3 style="margin:0 0 8px 0" class="accent">Ustaw swój nick</h3>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="nickInput" placeholder="Twój nick (max 20 znaków)" maxlength="20" />
-        <button class="btn" id="saveNickBtn">Zapisz</button>
-        <button class="btn ghost" id="cancelNickBtn">Wyloguj</button>
-      </div>
-      <p id="nickMsg" class="tiny" style="margin-top:8px;color:var(--muted)"></p>
+    <!-- Nick input -->
+    <div class="mb-6">
+      <input id="nicknameInput" type="text" placeholder="Wprowadź swój nick" class="border px-3 py-2 rounded mr-2">
+      <button id="saveNickBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Zapisz</button>
     </div>
 
-    <!-- MAIN APP -->
-    <div id="mainApp" class="hidden fadeIn" style="margin-top:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:12px">
-          <button id="tabTypesBtn" class="tab-btn active">TYPY</button>
-          <button id="tabRankingBtn" class="tab-btn">RANKING</button>
-          <button id="tabAdminBtn" class="tab-btn" style="display:none">PANEL ADMINA</button>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="tiny muted" id="userDisplay">Zalogowany: —</div>
-          <button class="btn ghost" id="logoutBtn">Wyloguj</button>
-        </div>
-      </div>
-
-      <div class="cols">
-        <!-- left - typowanie / ranking -->
-        <div>
-          <!-- TYPY -->
-          <div id="viewTypes" class="card active-tab">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <h3 style="margin:0" class="accent">Mecze do typowania</h3>
-              <div style="display:flex;gap:8px;align-items:center">
-                <label class="tiny muted">Filtr:</label>
-                <input id="filterDate" type="date" />
-                <button class="btn ghost" id="clearFilter">Wyczyść</button>
-              </div>
-            </div>
-            <div id="matchesList" class="space-y-3"></div>
-          </div>
-
-          <!-- RANKING -->
-          <div id="viewRanking" class="card hidden" style="margin-top:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-              <h3 class="accent">Ranking</h3>
-              <div class="tiny muted">Top typujący</div>
-            </div>
-            <div id="rankingList" class="rank-list"></div>
-          </div>
-        </div>
-
-        <!-- right - sidebar admin + history -->
-        <aside>
-          <div class="card">
-            <h4 style="margin:0 0 8px 0">Twoje punkty</h4>
-            <div style="display:flex;align-items:center;justify-content:space-between; gap:12px;">
-              <div>
-                <div id="userPoints" style="font-size:28px;font-weight:800">0</div>
-                <div class="tiny muted">Łączne punkty</div>
-              </div>
-              <div style="text-align:right">
-                <div class="tiny muted">Nick</div>
-                <div id="userNickDisplay" style="font-weight:700">—</div>
-              </div>
-            </div>
-            <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)" />
-            <h5 style="margin:0 0 8px 0">Twoja historia typów</h5>
-            <div id="historyList" style="display:flex;flex-direction:column;gap:8px"></div>
-          </div>
-
-          <div id="adminPanel" class="card hidden" style="margin-top:12px;">
-            <h4 class="accent" style="margin:0 0 8px 0">Panel Admina</h4>
-
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <input id="adminTeamA" placeholder="Team A" />
-              <input id="adminTeamB" placeholder="Team B" />
-              <input id="adminDate" type="datetime-local" />
-              <select id="adminBO">
-                <option value="1">BO1</option>
-                <option value="3">BO3</option>
-                <option value="5">BO5</option>
-              </select>
-              <div style="display:flex;gap:8px">
-                <button class="btn" id="adminAddMatch">Dodaj mecz</button>
-                <button class="btn ghost" id="adminRefresh">Odśwież</button>
-              </div>
-            </div>
-
-            <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)" />
-
-            <div>
-              <h5 style="margin:0 0 8px 0">Mecze (edytuj wynik)</h5>
-              <div id="adminMatchesList" style="display:flex;flex-direction:column;gap:8px"></div>
-            </div>
-
-            <div style="margin-top:10px">
-              <h5 style="margin:0 0 8px 0">Użytkownicy</h5>
-              <div id="adminUsersList" style="display:flex;flex-direction:column;gap:8px"></div>
-            </div>
-          </div>
-        </aside>
-      </div>
+    <!-- Tabs -->
+    <div class="flex space-x-4 mb-6">
+      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="0">Typowanie</button>
+      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="1">Ranking</button>
+      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="2">Panel Admina</button>
     </div>
 
-    <!-- tiny footer -->
-    <div style="margin-top:12px;text-align:center" class="muted tiny">Made for fast CS2 typer — lokalnie • pamięć w przeglądarce</div>
-  </div>
+    <!-- Tab Contents -->
+    <div id="tabsContainer">
+      <!-- Typowanie -->
+      <div class="tab active" id="tab0">
+        <h2 class="text-xl font-bold mb-4">Mecze do typowania</h2>
+        <div id="matchesContainer"></div>
+      </div>
 
-<script src="script.js"></script>
+      <!-- Ranking -->
+      <div class="tab" id="tab1">
+        <h2 class="text-xl font-bold mb-4">Ranking</h2>
+        <div id="rankingContainer">Ładowanie...</div>
+      </div>
+
+      <!-- Panel Admina -->
+      <div class="tab" id="tab2">
+        <h2 class="text-xl font-bold mb-4">Panel Admina</h2>
+
+        <!-- Dodaj mecz -->
+        <div class="mb-6">
+          <input id="adminTeamA" type="text" placeholder="Team A" class="border px-3 py-2 rounded mr-2">
+          <input id="adminTeamB" type="text" placeholder="Team B" class="border px-3 py-2 rounded mr-2">
+          <input id="adminBOP" type="number" placeholder="BOP" class="border px-3 py-2 rounded mr-2">
+          <input id="adminTime" type="datetime-local" class="border px-3 py-2 rounded mr-2">
+          <button id="addMatchBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Dodaj</button>
+        </div>
+
+        <div id="adminMatchesContainer" class="mb-6"></div>
+        <div id="adminUsersContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <script src="script.js" type="module"></script>
 </body>
 </html>
