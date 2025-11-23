@@ -223,31 +223,84 @@ function renderRanking(){
 // -----------------------
 // ADMIN
 // -----------------------
-document.getElementById("addMatchBtn").addEventListener("click",async()=>{
-    const teamA=document.getElementById("teamA").value.trim();
-    const teamB=document.getElementById("teamB").value.trim();
-    const bop=parseInt(document.getElementById("bop").value);
-    const time=document.getElementById("matchTime").value;
 
-    if(!teamA||!teamB||!bop||!time) return showNotification("Uzupełnij wszystkie pola!","error");
+// Bezpośrednie podłączenie 'addMatchBtn' z obsługą błędów i logowaniem
+document.getElementById("addMatchBtn").addEventListener("click", async (e) => {
+  try {
+    // sprawdź czy user jest zalogowany
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      console.error('AddMatch: brak zalogowanego uzytkownika');
+      return showNotification('Musisz się zalogować!', 'error');
+    }
 
-    const startTime=new Date();
-    const [hours,minutes]=time.split(":");
-    startTime.setHours(parseInt(hours),parseInt(minutes),0,0);
+    // sprawdź admina
+    const adminEmails = ["paweloxbieniek1@gmail.com"];
+    if (!adminEmails.includes(user.email)) {
+      console.error('AddMatch: uzytkownik nie jest adminem:', user.email);
+      return showNotification('Brak uprawnień admina', 'error');
+    }
 
-    try{
-        await db.collection("matches").add({
-            teamA,teamB,bop,startTime: firebase.firestore.Timestamp.fromDate(startTime)
-        });
-        showNotification("Mecz dodany!","success");
-        loadData();
-        document.getElementById("teamA").value="";
-        document.getElementById("teamB").value="";
-        document.getElementById("bop").value="";
-        document.getElementById("matchTime").value="";
-    }catch(err){ console.error(err); showNotification("Nie udało się dodać meczu!","error"); }
+    // pobierz pola
+    const teamA = document.getElementById("teamA").value.trim();
+    const teamB = document.getElementById("teamB").value.trim();
+    const bop = parseInt(document.getElementById("bop").value);
+    const time = document.getElementById("matchTime").value;
+    if (!teamA || !teamB || !bop || !time) {
+      console.warn('AddMatch: nieuzupelnione pola', {teamA,teamB,bop,time});
+      return showNotification("Uzupełnij wszystkie pola!", "error");
+    }
+
+    // parsuj czas (ustaw dzisiejszą datę + godzina)
+    const now = new Date();
+    const [hoursStr, minutesStr] = time.split(':');
+    if (typeof hoursStr === 'undefined' || typeof minutesStr === 'undefined') {
+      console.warn('AddMatch: nieprawidlowy format czasu', time);
+      return showNotification("Nieprawidłowy format czasu", "error");
+    }
+    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+                               parseInt(hoursStr,10), parseInt(minutesStr,10), 0, 0);
+
+    // konwersja do Firestore Timestamp (compat)
+    if (!firebase.firestore || !firebase.firestore.Timestamp) {
+      console.error('AddMatch: brak firebase.firestore.Timestamp (nieprawidlowy SDK?)');
+      return showNotification('Błąd konfiguracji Firebase (Timestamp)', 'error');
+    }
+
+    const startTimestamp = firebase.firestore.Timestamp.fromDate(startDate);
+
+    // ZRÓB LOG przed zapisem
+    console.log('AddMatch: zapisuję mecz', { teamA, teamB, bop, startDate, startTimestamp });
+
+    // zapis do Firestore
+    const docRef = await firebase.firestore().collection('matches').add({
+      teamA,
+      teamB,
+      bop,
+      startTime: startTimestamp,
+      createdBy: user.uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('AddMatch: OK, id =', docRef.id);
+    showNotification('Mecz dodany!', 'success');
+
+    // wyczyść pola i odśwież
+    document.getElementById("teamA").value = "";
+    document.getElementById("teamB").value = "";
+    document.getElementById("bop").value = "";
+    document.getElementById("matchTime").value = "";
+    await loadData();
+  } catch (err) {
+    console.error('AddMatch: wyjątek', err);
+    // pokaż bardziej szczegółowy komunikat użytkownikowi
+    const code = err && err.code ? err.code : 'unknown';
+    const msg = err && err.message ? err.message : String(err);
+    showNotification(`Błąd: ${code}`, 'error');
+    // Rzuć dodatkowy log w konsolę, żebyśmy widzieli szczegóły
+    console.error('AddMatch error details:', { code, msg, err });
+  }
 });
-
 function renderAdminMatches(){
     const container=document.getElementById("admin-matches-list");
     container.innerHTML="";
