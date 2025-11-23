@@ -1,198 +1,217 @@
-// ==================== KONFIGURACJA ====================
-const ADMIN_EMAIL = "paweloxbieniek1@gmail.com"; // Twój mail jako admin
-let userEmail = "";
-let userNick = "";
-let userRole = "user"; // "admin" jeśli jesteś adminem
+// ==== KONFIGURACJA ====
+const adminEmail = "paweloxbieniek1@gmail.com";
 
-// Dane tymczasowe (zamiast arkusza / SheetDB)
-let users = []; // {email,nick,role,points,typy}
-let mecze = []; // {id,teamA,teamB,time,result} - result np: "2:1"
-let ranking = [];
+// ==== ZMIENNE GLOBALNE ====
+let currentUser = null;
+let matches = [];  // Lista meczów
+let users = [];    // Lista użytkowników
 
-// ==================== LOGOWANIE GOOGLE ====================
+// ==== FUNKCJE LOGOWANIA GOOGLE ====
 function onGoogleSignIn(response) {
-    const userObj = jwt_decode(response.credential);
-    userEmail = userObj.email;
-    userNick = "";
-    userRole = (userEmail === ADMIN_EMAIL) ? "admin" : "user";
+    const profile = decodeJwtResponse(response.credential);
+    currentUser = { email: profile.email, name: profile.name };
+    initApp();
+}
 
-    const existingUser = users.find(u => u.email === userEmail);
-    if(existingUser){
-        userNick = existingUser.nick;
-        showMainApp();
+// Dekoder tokena JWT Google
+function decodeJwtResponse(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+    ).join(''));
+    return JSON.parse(jsonPayload);
+}
+
+// Wyloguj
+function signOut() {
+    currentUser = null;
+    document.getElementById('mainApp').classList.add('hidden');
+    document.getElementById('loginCard').classList.remove('hidden');
+    document.getElementById('nickCard').classList.add('hidden');
+}
+
+// ==== INICJALIZACJA APLIKACJI ====
+function initApp() {
+    document.getElementById('loginCard').classList.add('hidden');
+    const storedUsers = JSON.parse(localStorage.getItem('users')) || [];
+    users = storedUsers;
+
+    // Sprawdź czy użytkownik istnieje
+    let user = users.find(u => u.email === currentUser.email);
+    if (!user) {
+        // Nowy użytkownik, pokaż panel nick
+        document.getElementById('nickCard').classList.remove('hidden');
     } else {
-        document.getElementById("loginCard").style.display = "none";
-        document.getElementById("nickSetup").style.display = "block";
+        currentUser.nick = user.nick;
+        currentUser.points = user.points || 0;
+        currentUser.role = user.role || 'user';
+        showMainApp();
     }
 }
 
+// ==== ZAPIS NICKU ====
 function saveNick() {
-    const input = document.getElementById("nickInput").value.trim();
-    if(!input){
-        document.getElementById("nickMsg").innerText = "Nick nie może być pusty.";
+    const nickInput = document.getElementById('nickInput').value.trim();
+    if (!nickInput) {
+        document.getElementById('nickMsg').innerText = "Podaj nick!";
         return;
     }
-    userNick = input;
-    users.push({email:userEmail,nick:userNick,role:userRole,points:0,typy:[]});
+    currentUser.nick = nickInput;
+    currentUser.points = 0;
+    currentUser.role = 'user';
+    users.push(currentUser);
+    localStorage.setItem('users', JSON.stringify(users));
+    document.getElementById('nickCard').classList.add('hidden');
     showMainApp();
 }
 
-function showMainApp(){
-    document.getElementById("nickSetup").style.display = "none";
-    document.getElementById("loginCard").style.display = "none";
-    document.getElementById("mainApp").style.display = "block";
-    document.getElementById("userDisplay").innerText = `${userNick} (${userRole})`;
-    renderMecze();
+// ==== POKAŻ GŁÓWNY PANEL ====
+function showMainApp() {
+    document.getElementById('mainApp').classList.remove('hidden');
+    document.getElementById('userDisplay').innerText = `${currentUser.nick} (${currentUser.email})`;
+    if (currentUser.email !== adminEmail) {
+        document.getElementById('tabAdminBtn').style.display = 'none';
+    }
+    renderMatches();
     renderRanking();
-    renderAdmin();
+    renderAdminUsers();
 }
 
-// ==================== WYLOGUJ ====================
-function signOut(){
-    users = users.filter(u => u.email !== userEmail && u.role !== "admin"); // opcjonalnie
-    userEmail = "";
-    userNick = "";
-    userRole = "user";
-    document.getElementById("mainApp").style.display = "none";
-    document.getElementById("nickSetup").style.display = "none";
-    document.getElementById("loginCard").style.display = "block";
+// ==== TABY ====
+function showTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
 }
 
-// ==================== TABY ====================
-function showTab(tab){
-    document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
-    document.getElementById("tab-"+tab).style.display="block";
-}
-
-// ==================== MECZE ====================
-function renderMecze(){
-    const div = document.getElementById("meczeList");
-    div.innerHTML = "";
-    if(mecze.length===0){ div.innerHTML="<p>Brak meczów</p>"; return; }
-
-    mecze.forEach((m,idx)=>{
-        const container = document.createElement("div");
-        container.className = "card p-3 rounded-lg flex justify-between items-center animate-fadeIn";
-        container.innerHTML = `
-            <div>
-                <p class="font-semibold">${m.teamA} vs ${m.teamB} - ${m.time}</p>
-            </div>
-            <div class="flex gap-2">
-                <button class="btn-team px-3 py-1" onclick="typuj(${idx},'A')">Team A</button>
-                <button class="btn-team px-3 py-1" onclick="typuj(${idx},'B')">Team B</button>
-            </div>
-            <button class="btn-submit px-3 py-1 ml-2 hidden" id="submitBtn-${idx}" onclick="wyślijTyp(${idx})">Wyślij</button>
-        `;
-        div.appendChild(container);
-    });
-}
-
-function typuj(idx,team){
-    const btnSubmit = document.getElementById(`submitBtn-${idx}`);
-    btnSubmit.style.display = "inline-block";
-    mecze[idx].selected = team;
-}
-
-function wyślijTyp(idx){
-    const m = mecze[idx];
-    const user = users.find(u=>u.email===userEmail);
-    if(!user.typy) user.typy=[];
-    user.typy[idx] = m.selected;
-    alert("Typ zapisany!");
-}
-
-// ==================== RANKING ====================
-function renderRanking(){
-    const div = document.getElementById("rankingList");
-    div.innerHTML = "";
-    users.sort((a,b)=>b.points - a.points).forEach(u=>{
-        const el = document.createElement("div");
-        el.className="card p-2 rounded flex justify-between";
-        el.innerHTML=`<span>${u.nick}</span><span>${u.points} pkt</span>`;
-        div.appendChild(el);
-    });
-}
-
-// ==================== PANEL ADMINA ====================
-function renderAdmin(){
-    if(userRole!=="admin"){
-        document.getElementById("tab-admin").style.display="none";
+// ==== MECZE ====
+function renderMatches() {
+    const list = document.getElementById('matchesList');
+    list.innerHTML = '';
+    if (matches.length === 0) {
+        list.innerHTML = "<p>Brak meczów</p>";
         return;
     }
-    renderAdminMecze();
-    renderAdminUsers();
-}
-
-function adminDodajMecz(){
-    const teamA = document.getElementById("adminTeamA").value.trim();
-    const teamB = document.getElementById("adminTeamB").value.trim();
-    const time = document.getElementById("adminTime").value;
-    if(!teamA||!teamB||!time){ alert("Wypełnij wszystkie pola!"); return;}
-    mecze.push({id:mecze.length,teamA,teamB,time,result:null});
-    renderMecze();
-    renderAdminMecze();
-}
-
-function renderAdminMecze(){
-    const div = document.getElementById("adminMecze");
-    div.innerHTML="";
-    mecze.forEach((m,idx)=>{
-        const el = document.createElement("div");
-        el.className="card p-2 rounded flex items-center justify-between";
-        el.innerHTML=`
-            <span>${m.teamA} vs ${m.teamB} - ${m.time}</span>
-            <input type="text" placeholder="Wynik 2:1" class="p-1 rounded w-20 bg-gray-800 text-white" id="wynik-${idx}" />
-            <button class="px-2 py-1 rounded bg-red-700" onclick="usunMecz(${idx})">Usuń</button>
-            <button class="px-2 py-1 rounded bg-green-600" onclick="zatwierdzWynik(${idx})">Zatwierdź</button>
+    matches.forEach((match, i) => {
+        const now = new Date();
+        const matchTime = new Date(match.time);
+        const disabled = now >= matchTime ? "disabled opacity-50 cursor-not-allowed" : "";
+        const card = document.createElement('div');
+        card.className = "card bg-gray-700 p-4 rounded flex justify-between items-center";
+        card.innerHTML = `
+            <div>${match.teamA} vs ${match.teamB} <span class="text-sm text-gray-300">(${match.timeStr})</span></div>
+            <div class="flex gap-2">
+                <button class="btn bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded ${disabled}" onclick="submitPick(${i}, 'A')">Team A</button>
+                <button class="btn bg-red-500 hover:bg-red-600 px-3 py-1 rounded ${disabled}" onclick="submitPick(${i}, 'B')">Team B</button>
+            </div>
         `;
-        div.appendChild(el);
+        list.appendChild(card);
     });
 }
 
-function renderAdminUsers(){
-    const div = document.getElementById("adminUsers");
-    div.innerHTML="";
-    users.forEach((u,idx)=>{
-        const el = document.createElement("div");
-        el.className="flex justify-between items-center card p-2 rounded";
-        el.innerHTML=`<span>${u.nick} (${u.email}) - ${u.points} pkt</span>
-        <button class="px-2 py-1 rounded bg-red-700" onclick="usunUser(${idx})">Usuń</button>`;
-        div.appendChild(el);
+// Typowanie meczu
+function submitPick(matchIndex, choice) {
+    const match = matches[matchIndex];
+    if (!match.picks) match.picks = {};
+    match.picks[currentUser.email] = choice;
+    localStorage.setItem('matches', JSON.stringify(matches));
+    alert(`Twój typ na ${match.teamA} vs ${match.teamB} został zapisany!`);
+}
+
+// ==== RANKING ====
+function renderRanking() {
+    const list = document.getElementById('rankingList');
+    list.innerHTML = '';
+    const sorted = [...users].sort((a,b) => (b.points||0)-(a.points||0));
+    sorted.forEach((u,i) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-700 p-2 rounded flex justify-between";
+        div.innerHTML = `<span>${i+1}. ${u.nick}</span><span>${u.points || 0} pkt</span>`;
+        list.appendChild(div);
     });
 }
 
-// ==================== AKCJE ADMIN ====================
-function usunMecz(idx){
-    if(!confirm("Na pewno usunąć mecz?")) return;
-    mecze.splice(idx,1);
-    renderMecze();
-    renderAdminMecze();
+// ==== PANEL ADMINA ====
+function adminAddMatch() {
+    const teamA = document.getElementById('adminTeamA').value.trim();
+    const teamB = document.getElementById('adminTeamB').value.trim();
+    const time = document.getElementById('adminTime').value;
+    if (!teamA || !teamB || !time) { alert("Uzupełnij wszystkie pola!"); return; }
+    const match = { teamA, teamB, time: new Date().toISOString().split('T')[0]+"T"+time, timeStr: time };
+    matches.push(match);
+    localStorage.setItem('matches', JSON.stringify(matches));
+    renderMatches();
+    renderAdminMatches();
 }
 
-function usunUser(idx){
-    if(!confirm("Na pewno usunąć użytkownika?")) return;
-    users.splice(idx,1);
+// Renderowanie meczów w panelu admina
+function renderAdminMatches() {
+    const list = document.getElementById('adminMatches');
+    list.innerHTML = '';
+    matches.forEach((match,i) => {
+        const div = document.createElement('div');
+        div.className = "bg-gray-600 p-2 rounded flex justify-between items-center";
+        div.innerHTML = `
+            <span>${match.teamA} vs ${match.teamB} (${match.timeStr})</span>
+            <div class="flex gap-2">
+                <button class="btn bg-green-500 hover:bg-green-600 px-2 py-1 rounded" onclick="setResult(${i}, 'A')">Wynik A</button>
+                <button class="btn bg-red-500 hover:bg-red-600 px-2 py-1 rounded" onclick="setResult(${i}, 'B')">Wynik B</button>
+                <button class="btn bg-gray-500 hover:bg-gray-600 px-2 py-1 rounded" onclick="removeMatch(${i})">Usuń</button>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+// Ustawienie wyniku przez admina
+function setResult(matchIndex, winner) {
+    const match = matches[matchIndex];
+    match.winner = winner;
+    // przyznawanie punktów
+    Object.keys(match.picks||{}).forEach(email => {
+        const user = users.find(u => u.email===email);
+        if (!user.points) user.points=0;
+        if (match.picks[email] === winner) user.points += 1; // 1 pkt za wygranie
+    });
+    localStorage.setItem('matches', JSON.stringify(matches));
+    localStorage.setItem('users', JSON.stringify(users));
     renderRanking();
+    renderMatches();
+    renderAdminMatches();
+}
+
+// Usuń mecz
+function removeMatch(index) {
+    matches.splice(index,1);
+    localStorage.setItem('matches', JSON.stringify(matches));
+    renderMatches();
+    renderAdminMatches();
+}
+
+// Zarządzanie użytkownikami (admin)
+function renderAdminUsers() {
+    const div = document.getElementById('adminUsers');
+    div.innerHTML = '';
+    users.forEach((u,i) => {
+        const d = document.createElement('div');
+        d.className = "flex justify-between bg-gray-600 p-2 rounded";
+        d.innerHTML = `<span>${u.nick} (${u.email})</span>
+                       <button class="btn bg-red-500 hover:bg-red-600 px-2 py-1 rounded" onclick="removeUser(${i})">Usuń</button>`;
+        div.appendChild(d);
+    });
+}
+
+function removeUser(index) {
+    if (!confirm("Na pewno usunąć użytkownika?")) return;
+    users.splice(index,1);
+    localStorage.setItem('users', JSON.stringify(users));
     renderAdminUsers();
-}
-
-function zatwierdzWynik(idx){
-    const wynikInput = document.getElementById(`wynik-${idx}`).value;
-    if(!wynikInput.match(/^\d+:\d+$/)){ alert("Niepoprawny format wyniku!"); return;}
-    mecze[idx].result = wynikInput;
-
-    // aktualizacja punktów
-    const [gA,gB] = wynikInput.split(":").map(Number);
-    users.forEach(u=>{
-        if(u.typy[idx]){
-            const typ = u.typy[idx];
-            if((gA>gB && typ==='A') || (gB>gA && typ==='B')) u.points+=1; // poprawny zwycięzca
-            if((gA===gB && typ==='draw')) u.points+=1; // jeśli draw
-            if((typ==='A' && gA===gB) || (typ==='B' && gB===gA)) u.points+=0;
-            // dokładny wynik 2 pkt
-            if((typ==='A' && gA>gB && wynikInput==='2:0') || (typ==='B' && gB>gA && wynikInput==='0:2')) u.points+=2;
-        }
-    });
     renderRanking();
-    alert("Wynik zapisany!");
 }
+
+// ==== INICJALIZACJA DANYCH ====
+function loadData() {
+    matches = JSON.parse(localStorage.getItem('matches')) || [];
+    users = JSON.parse(localStorage.getItem('users')) || [];
+}
+window.onload = loadData;
