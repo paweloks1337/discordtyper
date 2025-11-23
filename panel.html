@@ -2,66 +2,47 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Typer CS2 - Panel</title>
-
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="script.js"></script>
+<title>Panel</title>
+<style>
+body {
+  background:#121212;
+  color:white;
+  font-family:Arial;
+  padding:40px;
+}
+button {
+  padding:10px 20px;
+  background:crimson;
+  border:none;
+  color:white;
+  border-radius:5px;
+  cursor:pointer;
+}
+button:hover {
+  opacity:0.8;
+}
+</style>
 </head>
-<body class="bg-gray-900 text-white">
+<body>
 
-<div class="max-w-4xl mx-auto p-4">
+<h1>Panel użytkownika</h1>
+<p id="userinfo"></p>
 
-  <header class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold text-yellow-400">Typer CS2</h1>
-    <div>
-      <span id="userDisplay" class="mr-4"></span>
-      <button onclick="signOut()" class="bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">Wyloguj</button>
-    </div>
-  </header>
+<button onclick="logout()">Wyloguj</button>
 
-  <!-- Zakładki -->
-  <nav class="flex gap-2 mb-4">
-    <button class="tabBtn" onclick="showTab('types')">TYPY</button>
-    <button class="tabBtn" onclick="showTab('ranking')">RANKING</button>
-    <button class="tabBtn" onclick="showTab('admin')">PANEL ADMINA</button>
-  </nav>
+<script>
+if (!localStorage.getItem("user_email")) {
+    window.location.href = "index.html";
+}
 
-  <!-- Typy -->
-  <section id="tab-types" class="tab">
-    <h2 class="text-xl font-bold text-yellow-400 mb-3">Typuj mecze</h2>
-    <div id="meczeList" class="space-y-3"></div>
-  </section>
+document.querySelector("#userinfo").innerText =
+    "Zalogowany jako: " + localStorage.getItem("user_email");
 
-  <!-- Ranking -->
-  <section id="tab-ranking" class="tab hidden">
-    <h2 class="text-xl font-bold text-yellow-400 mb-3">Ranking</h2>
-    <div id="rankingList" class="space-y-2"></div>
-  </section>
-
-  <!-- Panel admina -->
-  <section id="tab-admin" class="tab hidden">
-    <h2 class="text-xl font-bold text-yellow-400 mb-3">Panel Admina</h2>
-
-    <!-- Dodaj mecz -->
-    <div class="mb-4">
-      <input id="adminTeamA" placeholder="Team A" class="p-2 rounded bg-gray-700 border border-gray-600 mr-2">
-      <input id="adminTeamB" placeholder="Team B" class="p-2 rounded bg-gray-700 border border-gray-600">
-      <input id="adminTime" type="time" class="p-2 rounded bg-gray-700 border border-gray-600 ml-2">
-      <select id="adminBo" class="p-2 rounded bg-gray-700 border border-gray-600 ml-2">
-        <option value="1">BO1</option>
-        <option value="3">BO3</option>
-        <option value="5">BO5</option>
-      </select>
-      <button onclick="adminDodajMecz()" class="bg-yellow-400 px-3 py-1 rounded ml-2 hover:scale-105 transition-transform">Dodaj mecz</button>
-    </div>
-
-    <div id="adminMecze" class="space-y-2"></div>
-
-  </section>
-
-</div>
+function logout() {
+    localStorage.clear();
+    window.location.href = "index.html";
+}
+</script>
 
 </body>
 </html>
