@@ -1,221 +1,255 @@
-// script.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-
-// Firebase config
+// -----------------------
+// FIREBASE CONFIG
+// -----------------------
 const firebaseConfig = {
-  apiKey: "AIzaSyDwh9_u2u_NenhPYyvhCaLKFCrCrMmMEGE",
-  authDomain: "cs2typer.firebaseapp.com",
-  projectId: "cs2typer",
-  storageBucket: "cs2typer.firebasestorage.app",
-  messagingSenderId: "533657649328",
-  appId: "1:533657649328:web:e220acd6865b489fa6bb75"
+    apiKey: "AIzaSyDwh9_u2u_NenhPYyvhCaLKFCrCrMmMEGE",
+    authDomain: "cs2typer.firebaseapp.com",
+    projectId: "cs2typer",
+    storageBucket: "cs2typer.firebasestorage.app",
+    messagingSenderId: "533657649328",
+    appId: "1:533657649328:web:e220acd6865b489fa6bb75"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const provider = new GoogleAuthProvider();
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-// DOM elements
-const loginSection = document.getElementById("loginSection");
-const appSection = document.getElementById("appSection");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const userLabel = document.getElementById("userLabel");
-const nicknameInput = document.getElementById("nicknameInput");
-const saveNickBtn = document.getElementById("saveNickBtn");
-const tabBtns = document.querySelectorAll(".tabBtn");
-const tabs = document.querySelectorAll(".tab");
-const matchesContainer = document.getElementById("matchesContainer");
-const rankingContainer = document.getElementById("rankingContainer");
-const addMatchBtn = document.getElementById("addMatchBtn");
-const adminTeamA = document.getElementById("adminTeamA");
-const adminTeamB = document.getElementById("adminTeamB");
-const adminBOP = document.getElementById("adminBOP");
-const adminTime = document.getElementById("adminTime");
-const adminMatchesContainer = document.getElementById("adminMatchesContainer");
-const adminUsersContainer = document.getElementById("adminUsersContainer");
-
-// STATE
+// -----------------------
+// GLOBAL VARIABLES
+// -----------------------
 let currentUser = null;
-let nick = "";
-let role = "user"; // 'admin' jeśli Twój mail
-const adminEmail = "paweloxbieniek1@gmail.com";
-
-let users = [];
+let isAdmin = false;
+const adminEmails = ["paweloxbieniek1@gmail.com"];
 let matches = [];
-let ranking = {};
+let users = [];
+let rankings = {};
 
-// UTILS
-function updateTabs(tabIndex) {
-  tabs.forEach((t, i) => t.classList.toggle("active", i === tabIndex));
-}
+// -----------------------
+// AUTHENTICATION
+// -----------------------
+const loginBtn = document.getElementById("user-name");
+const logoutBtn = document.getElementById("logoutBtn");
 
-function saveNick() {
-  if (nicknameInput.value.trim() === "") return alert("Wprowadź nick!");
-  nick = nicknameInput.value.trim();
-  if (!users.find(u => u.email === currentUser.email)) {
-    users.push({ email: currentUser.email, nick, role });
-  } else {
-    users.find(u => u.email === currentUser.email).nick = nick;
-  }
-  updateRanking();
-  renderUsers();
-}
+loginBtn.addEventListener("click", () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider);
+});
 
-function updateRanking() {
-  ranking = {};
-  users.forEach(u => ranking[u.email] = 0);
-  matches.forEach(m => {
-    m.typy?.forEach(t => {
-      if (!ranking[t.email]) ranking[t.email] = 0;
-      const correctWinner = (m.scoreA !== null && m.scoreB !== null) ? (m.scoreA > m.scoreB ? m.teamA : m.teamB) : null;
-      if (t.team === correctWinner && t.scoreA == m.scoreA && t.scoreB == m.scoreB) ranking[t.email] += 3;
-      else if (t.team === correctWinner) ranking[t.email] += 2;
-    });
-  });
-  renderRanking();
-}
+logoutBtn.addEventListener("click", () => auth.signOut());
 
-// RENDER
-function renderUsers() {
-  if (currentUser.email !== adminEmail) return;
-  adminUsersContainer.innerHTML = "<h3 class='font-bold mb-2'>Użytkownicy:</h3>";
-  users.forEach(u => {
-    const div = document.createElement("div");
-    div.className = "flex justify-between mb-1 items-center";
-    div.innerHTML = `<span>${u.nick} (${u.email})</span> 
-      <button class="bg-red-500 px-2 py-1 text-white rounded hover:bg-red-600" onclick="deleteUser('${u.email}')">Usuń</button>`;
-    adminUsersContainer.appendChild(div);
-  });
-}
-
-window.deleteUser = (email) => {
-  users = users.filter(u => u.email !== email);
-  updateRanking();
-  renderUsers();
-  renderMatches();
-};
-
-function renderMatches() {
-  matchesContainer.innerHTML = "";
-  adminMatchesContainer.innerHTML = "";
-  matches.forEach((m, i) => {
-    // Typowanie
-    const now = new Date();
-    const matchTime = new Date(m.time);
-    const canType = now < matchTime;
-    const matchDiv = document.createElement("div");
-    matchDiv.className = "matchCard";
-    matchDiv.innerHTML = `
-      <div>
-        ${m.teamA} vs ${m.teamB} 
-        <span class="status">${canType ? matchTime.toLocaleString() : "Rozpoczęty"}</span>
-      </div>
-      <div>
-        <input type="number" placeholder="Score ${m.teamA}" class="scoreA w-16 border px-1 py-0.5 rounded mr-1">
-        <input type="number" placeholder="Score ${m.teamB}" class="scoreB w-16 border px-1 py-0.5 rounded mr-1">
-        <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600" ${!canType ? "disabled" : ""} onclick="sendTyp(${i})">Wyślij</button>
-      </div>
-    `;
-    matchesContainer.appendChild(matchDiv);
-
-    // Panel admina
-    if (currentUser.email === adminEmail) {
-      const div = document.createElement("div");
-      div.className = "matchCard";
-      div.innerHTML = `
-        ${m.teamA} vs ${m.teamB} | BOP: ${m.BOP} | ${matchTime.toLocaleString()} 
-        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 ml-2" onclick="deleteMatch(${i})">Usuń</button>
-        <input type="number" placeholder="${m.teamA}" class="adminScoreA w-16 border px-1 py-0.5 rounded ml-2">
-        <input type="number" placeholder="${m.teamB}" class="adminScoreB w-16 border px-1 py-0.5 rounded ml-2">
-        <button class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 ml-2" onclick="setScore(${i})">Zapisz wynik</button>
-      `;
-      adminMatchesContainer.appendChild(div);
+auth.onAuthStateChanged(user => {
+    if (user) {
+        currentUser = user;
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
+        document.getElementById("user-name").textContent = `Zalogowany jako: ${user.displayName}`;
+        checkAdmin(user.email);
+        loadData();
+    } else {
+        currentUser = null;
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        document.getElementById("user-name").textContent = "Zaloguj";
+        document.getElementById("matches-list").innerHTML = "";
+        document.getElementById("ranking-list").innerHTML = "";
+        document.getElementById("admin-matches-list").innerHTML = "";
+        document.getElementById("admin-users-list").innerHTML = "";
     }
-  });
+});
+
+function checkAdmin(email) {
+    isAdmin = adminEmails.includes(email);
+    const adminTab = document.querySelector('nav button[data-tab="admin"]');
+    adminTab.style.display = isAdmin ? "inline-block" : "none";
+}
+
+// -----------------------
+// LOAD DATA
+// -----------------------
+function loadData() {
+    // Load matches
+    db.collection("matches").orderBy("startTime").get().then(snapshot => {
+        matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderMatches();
+        renderAdminMatches();
+    });
+
+    // Load users
+    db.collection("users").get().then(snapshot => {
+        users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        buildRanking();
+        renderAdminUsers();
+    });
+}
+
+// -----------------------
+// MATCHES RENDERING
+// -----------------------
+function renderMatches() {
+    const container = document.getElementById("matches-list");
+    container.innerHTML = "";
+    const now = new Date();
+
+    matches.forEach(match => {
+        const start = match.startTime.toDate ? match.startTime.toDate() : new Date(match.startTime);
+        const canType = now < start;
+
+        const div = document.createElement("div");
+        div.className = "match-card";
+        div.innerHTML = `
+            <div class="match-info">
+                <span class="match-teams">${match.teamA} vs ${match.teamB}</span>
+                <span class="match-time">${start.toLocaleString()} | BOP: ${match.bop}</span>
+            </div>
+            <div class="match-actions">
+                <input type="number" min="0" placeholder="Wynik ${match.teamA}" id="scoreA_${match.id}" class="input-score" ${!canType ? "disabled" : ""}>
+                <input type="number" min="0" placeholder="Wynik ${match.teamB}" id="scoreB_${match.id}" class="input-score" ${!canType ? "disabled" : ""}>
+                <button class="btn btn-submit" onclick="submitType('${match.id}')" ${!canType ? "disabled" : ""}>Wyślij</button>
+            </div>
+            <div class="type-feedback" id="feedback_${match.id}"></div>
+        `;
+        container.appendChild(div);
+
+        if (canType) startCountdown(match.id, start);
+    });
+}
+
+// -----------------------
+// COUNTDOWN
+// -----------------------
+function startCountdown(matchId, startTime) {
+    const interval = setInterval(() => {
+        const now = new Date();
+        const diff = startTime - now;
+        const feedback = document.getElementById(`feedback_${matchId}`);
+        if (diff <= 0) {
+            feedback.textContent = "⏱️ Mecz rozpoczęty, typowanie zakończone!";
+            clearInterval(interval);
+            renderMatches();
+        } else {
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            feedback.textContent = `Pozostało: ${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
+        }
+    }, 1000);
+}
+
+// -----------------------
+// SUBMIT TYPE
+// -----------------------
+function submitType(matchId) {
+    const scoreA = parseInt(document.getElementById(`scoreA_${matchId}`).value);
+    const scoreB = parseInt(document.getElementById(`scoreB_${matchId}`).value);
+
+    if (isNaN(scoreA) || isNaN(scoreB)) return showNotification("Podaj poprawne wyniki!", "error");
+
+    db.collection("matches").doc(matchId).collection("types").doc(currentUser.uid).set({
+        userId: currentUser.uid,
+        nick: currentUser.displayName,
+        scoreA,
+        scoreB,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => showNotification("🟢 Typ oddany!", "success"));
+}
+
+// -----------------------
+// RANKING
+// -----------------------
+function buildRanking() {
+    rankings = {};
+    users.forEach(u => {
+        rankings[u.id] = u.points || 0;
+    });
+    renderRanking();
 }
 
 function renderRanking() {
-  rankingContainer.innerHTML = "<ul>";
-  Object.entries(ranking).sort((a, b) => b[1] - a[1]).forEach(([email, pts]) => {
-    const user = users.find(u => u.email === email);
-    if (!user) return;
-    rankingContainer.innerHTML += `<li>${user.nick}: ${pts} pkt</li>`;
-  });
-  rankingContainer.innerHTML += "</ul>";
-}
-
-// ACTIONS
-function sendTyp(i) {
-  const match = matches[i];
-  const inputs = document.querySelectorAll("#matchesContainer .matchCard")[i].querySelectorAll("input");
-  const scoreA = parseInt(inputs[0].value);
-  const scoreB = parseInt(inputs[1].value);
-  if (isNaN(scoreA) || isNaN(scoreB)) return alert("Wpisz wyniki!");
-  if (!match.typy) match.typy = [];
-  const existing = match.typy.find(t => t.email === currentUser.email);
-  if (existing) {
-    existing.team = scoreA > scoreB ? match.teamA : match.teamB;
-    existing.scoreA = scoreA;
-    existing.scoreB = scoreB;
-  } else {
-    match.typy.push({
-      email: currentUser.email,
-      team: scoreA > scoreB ? match.teamA : match.teamB,
-      scoreA,
-      scoreB
+    const tbody = document.getElementById("ranking-list");
+    tbody.innerHTML = "";
+    const sorted = Object.entries(rankings).sort((a,b) => b[1]-a[1]);
+    sorted.forEach(([uid, points], index) => {
+        const user = users.find(u => u.id === uid);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${index+1}</td><td>${user.nick}</td><td>${points}</td>`;
+        tbody.appendChild(tr);
     });
-  }
-  updateRanking();
-  alert("Typ zapisany! 🟢");
 }
 
-window.deleteMatch = (i) => {
-  matches.splice(i, 1);
-  renderMatches();
-};
+// -----------------------
+// ADMIN FUNCTIONS
+// -----------------------
+document.getElementById("addMatchBtn").addEventListener("click", () => {
+    const teamA = document.getElementById("teamA").value;
+    const teamB = document.getElementById("teamB").value;
+    const bop = parseInt(document.getElementById("bop").value);
+    const time = document.getElementById("matchTime").value;
 
-window.setScore = (i) => {
-  const match = matches[i];
-  const inputs = document.querySelectorAll(".adminScoreA")[i];
-  const inputsB = document.querySelectorAll(".adminScoreB")[i];
-  const scoreA = parseInt(document.querySelectorAll(".adminScoreA")[i].value);
-  const scoreB = parseInt(document.querySelectorAll(".adminScoreB")[i].value);
-  if (isNaN(scoreA) || isNaN(scoreB)) return alert("Wpisz wynik!");
-  match.scoreA = scoreA;
-  match.scoreB = scoreB;
-  updateRanking();
-  renderMatches();
-};
+    if (!teamA || !teamB || !bop || !time) return showNotification("Uzupełnij wszystkie pola!", "error");
 
-addMatchBtn.addEventListener("click", () => {
-  const teamA = adminTeamA.value.trim();
-  const teamB = adminTeamB.value.trim();
-  const BOP = parseInt(adminBOP.value);
-  const time = adminTime.value;
-  if (!teamA || !teamB || !time) return alert("Wypełnij wszystkie pola!");
-  matches.push({ teamA, teamB, BOP, time, typy: [] });
-  renderMatches();
+    const startTime = new Date();
+    const [hours, minutes] = time.split(":");
+    startTime.setHours(hours);
+    startTime.setMinutes(minutes);
+
+    db.collection("matches").add({
+        teamA, teamB, bop, startTime
+    }).then(() => {
+        showNotification("Mecz dodany!", "success");
+        loadData();
+        document.getElementById("teamA").value = "";
+        document.getElementById("teamB").value = "";
+        document.getElementById("bop").value = "";
+        document.getElementById("matchTime").value = "";
+    });
 });
 
-tabBtns.forEach(btn => btn.addEventListener("click", () => updateTabs(parseInt(btn.dataset.tab))));
-saveNickBtn.addEventListener("click", saveNick);
+function renderAdminMatches() {
+    const container = document.getElementById("admin-matches-list");
+    container.innerHTML = "";
+    matches.forEach(match => {
+        const div = document.createElement("div");
+        div.className = "match-card";
+        div.innerHTML = `
+            ${match.teamA} vs ${match.teamB} | ${new Date(match.startTime).toLocaleString()}
+            <button class="btn btn-danger" onclick="deleteMatch('${match.id}')">Usuń</button>
+        `;
+        container.appendChild(div);
+    });
+}
 
-loginBtn.addEventListener("click", () => {
-  signInWithPopup(auth, provider).then(result => {
-    currentUser = result.user;
-    role = currentUser.email === adminEmail ? "admin" : "user";
-    userLabel.innerText = `Zalogowany jako: ${currentUser.displayName}`;
-    loginSection.classList.add("hidden");
-    appSection.classList.remove("hidden");
-  }).catch(console.error);
-});
+function renderAdminUsers() {
+    const container = document.getElementById("admin-users-list");
+    container.innerHTML = "";
+    users.forEach(u => {
+        const div = document.createElement("div");
+        div.className = "match-card";
+        div.innerHTML = `
+            ${u.nick} (${u.email || u.id})
+            <button class="btn btn-danger" onclick="deleteUser('${u.id}')">Usuń</button>
+        `;
+        container.appendChild(div);
+    });
+}
 
-logoutBtn.addEventListener("click", () => {
-  signOut(auth).then(() => {
-    currentUser = null;
-    loginSection.classList.remove("hidden");
-    appSection.classList.add("hidden");
-  });
-});
+function deleteMatch(id) {
+    if (confirm("Na pewno chcesz usunąć mecz?")) {
+        db.collection("matches").doc(id).delete().then(() => loadData());
+    }
+}
+
+function deleteUser(id) {
+    if (confirm("Na pewno chcesz usunąć użytkownika?")) {
+        db.collection("users").doc(id).delete().then(() => loadData());
+    }
+}
+
+// -----------------------
+// NOTIFICATIONS
+// -----------------------
+function showNotification(msg, type="success") {
+    const notif = document.getElementById("notification");
+    notif.textContent = msg;
+    notif.className = `notification ${type} show`;
+    setTimeout(() => { notif.className = `notification ${type}`; }, 2000);
+}
