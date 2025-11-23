@@ -1,0 +1,51 @@
+:root{
+  --bg:#0b0f14;
+  --card:#0f1720;
+  --muted:#9aa4b2;
+  --text:#e6eef6;
+  --primary:#ffd24d;
+  --accent:#ffd24d;
+  --green:#10b981;
+  --danger:#ef4444;
+}
+
+*{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;padding:0}
+body{background:linear-gradient(180deg,#05060a,#0b0f14);color:var(--text);min-height:100vh}
+.login-panel{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:var(--card);padding:28px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.6);text-align:center;max-width:420px;width:100%}
+.brand{font-weight:700;font-size:1.6rem}
+.brand.small{font-size:1rem}
+.accent{color:var(--accent)}
+.muted{color:var(--muted);font-size:0.9rem;margin-top:8px}
+.small{font-size:0.8rem}
+.btn-primary{background:linear-gradient(90deg,var(--primary),#ffcf5c);border:none;padding:10px 16px;border-radius:10px;color:#071018;font-weight:700;cursor:pointer;margin-top:12px}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer}
+.site-header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:linear-gradient(90deg,#081023,#0b1220);box-shadow:0 2px 8px rgba(0,0,0,0.5)}
+.top-nav{display:flex;gap:8px;padding:10px;justify-content:center;border-bottom:1px solid rgba(255,255,255,0.02)}
+.tab-btn{background:transparent;border:none;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+.tab-btn.active, .tab-btn:hover{color:var(--primary);box-shadow:inset 0 -3px 0 rgba(255,210,77,0.15)}
+main{padding:20px;max-width:980px;margin:18px auto;width:100%}
+.mt{margin-top:16px}
+.match-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border:1px solid rgba(255,255,255,0.03)}
+.match-info{display:flex;flex-direction:column}
+.match-teams{font-weight:700}
+.match-time{color:var(--muted);font-size:0.9rem}
+.match-history{color:var(--primary);font-size:0.9rem;margin-top:6px}
+.match-actions{display:flex;align-items:center;gap:8px}
+.input-score{width:64px;padding:8px;border-radius:8px;background:#0b1220;border:1px solid rgba(255,255,255,0.03);color:var(--text)}
+.input{padding:10px;border-radius:8px;background:#0b1220;border:1px solid rgba(255,255,255,0.03);color:var(--text)}
+.admin-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.admin-row input{padding:8px;border-radius:8px;background:#0b1220;border:1px solid rgba(255,255,255,0.03);color:var(--text)}
+.notification{position:fixed;right:16px;top:16px;padding:12px 16px;border-radius:8px;font-weight:700;display:none;opacity:0;transition:all .25s ease}
+.notification.show{display:block;opacity:1}
+.notification.success{background:var(--green);color:#041014}
+.notification.error{background:var(--danger);color:#fff}
+.ranking-table{width:100%;border-collapse:collapse;margin-top:10px}
+.ranking-table th, .ranking-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.match-card button{border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-submit{background:var(--primary);color:#071018}
+@media (max-width:720px){
+  .admin-row{flex-direction:column;align-items:stretch}
+  .match-actions{flex-direction:column;align-items:flex-end}
+}
