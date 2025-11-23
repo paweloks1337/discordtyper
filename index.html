@@ -2,67 +2,47 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Panel</title>
+<title>Logowanie</title>
+
+<meta name="google-signin-client_id"
+      content="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com">
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<meta name="google-signin-client_id" content="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com">
+
 <style>
 body {
-    background: #0d1117;
-    color: white;
-    font-family: Arial;
-    margin: 0;
+  background: #0d0d0d;
+  color: white;
+  font-family: Arial;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  gap:20px;
 }
-
-#login {
-    display: flex;
-    height: 100vh;
-    align-items: center;
-    justify-content: center;
-}
-
-#panel {
-    display: none;
-    padding: 20px;
-}
+h1 { font-size: 32px; font-weight: 700; }
 </style>
 
 </head>
 <body>
 
-<div id="login">
-    <div id="g_id_onload"
-         data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-         data-context="signin"
-         data-callback="handleCredentialResponse"
-         data-auto_prompt="false">
-    </div>
+<h1>Typer CS2</h1>
 
-    <div class="g_id_signin"
-         data-type="standard"
-         data-size="large"
-         data-theme="outline"
-         data-text="signin_with"
-         data-shape="rectangular"
-         data-logo_alignment="left">
-    </div>
+<div id="g_id_onload"
+     data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
+     data-callback="handleCredentialResponse">
 </div>
 
-<div id="panel">
-    <h1>Witaj w panelu!</h1>
-    <div id="userinfo"></div>
-
-    <button onclick="logout()">Wyloguj</button>
+<div class="g_id_signin" 
+     data-type="standard"
+     data-size="large"
+     data-theme="outline"
+     data-text="signin_with"
+     data-shape="rectangular">
 </div>
 
-<script src="script.js"></script>
-
-<script>
-function logout() {
-    localStorage.removeItem("user");
-    location.reload();
-}
-</script>
+<script src="login.js"></script>
 
 </body>
 </html>
