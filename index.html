@@ -1,83 +1,187 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typer CS2</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Roboto', sans-serif; margin:0; padding:0; background: #1f1f2e; color:#fff; }
-    header { padding: 1rem; background: linear-gradient(90deg,#4e54c8,#8f94fb); display:flex; justify-content:space-between; align-items:center;}
-    h1 { margin:0; font-size:1.5rem; }
-    button { padding:0.5rem 1rem; border:none; border-radius:5px; cursor:pointer; transition: all 0.2s ease; }
-    button:hover { transform: scale(1.05); }
-    .container { padding:2rem; max-width:900px; margin:auto; }
-    .tab { display:none; margin-top:1rem; }
-    .tab.active { display:block; }
-    .match-card, .user-card, .rank-card { background:#2a2a3d; padding:1rem; margin-bottom:1rem; border-radius:10px; display:flex; justify-content:space-between; align-items:center; }
-    .match-actions button { margin-left:0.5rem; }
-    input[type="text"], input[type="number"], input[type="datetime-local"] { padding:0.5rem; border-radius:5px; border:none; width:100%; margin-bottom:0.5rem; }
-    .notification { position:fixed; top:1rem; right:1rem; background:#4caf50; padding:0.5rem 1rem; border-radius:5px; display:none; }
-  </style>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typer CS2</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#1f1f2e; color:#f0f0f0; margin:0; padding:0;}
+  header { background:#2a2a3b; padding:1rem; text-align:center; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:1.8rem; }
+  .user-info { margin-top:0.5rem; font-size:0.9rem; }
+  nav { display:flex; justify-content:center; gap:1rem; margin:1rem 0; }
+  nav button { background:#4444ff; border:none; padding:0.5rem 1rem; color:#fff; font-weight:bold; cursor:pointer; border-radius:6px; transition:0.3s; }
+  nav button:hover { background:#6666ff; }
+  .tab { padding:1rem; display:none; }
+  .tab.active { display:block; }
+  .match { background:#2a2a3b; margin:0.5rem 0; padding:0.5rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+  .match button { background:#28a745; border:none; padding:0.3rem 0.6rem; color:#fff; cursor:pointer; border-radius:4px; transition:0.2s; }
+  .match button:hover { background:#3dd066; }
+  input[type="text"] { padding:0.3rem; border-radius:4px; border:none; width:60px; text-align:center; }
+  .hidden { display:none; }
+  .status { font-size:0.9rem; color:#0f0; margin-left:0.5rem; }
+  table { width:100%; border-collapse:collapse; margin-top:1rem; }
+  th, td { border:1px solid #444; padding:0.5rem; text-align:center; }
+  th { background:#333; }
+</style>
 </head>
 <body>
 
 <header>
   <h1>Typer CS2</h1>
-  <div id="user-info">
-    <span id="user-nick"></span>
-    <button id="logout-btn" style="display:none;">Wyloguj</button>
+  <div class="user-info">
+    Zalogowany jako: <span id="userNick">---</span> 
+    <button onclick="logout()" style="background:#ff4444;">Wyloguj</button>
   </div>
 </header>
 
-<div class="container">
-  <!-- Logowanie -->
-  <div id="login-tab" class="tab active">
-    <div id="g_id_onload" data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
-    <div class="g_id_signin" data-type="standard"></div>
+<nav>
+  <button onclick="showTab('types')">Typowanie</button>
+  <button onclick="showTab('ranking')">Ranking</button>
+  <button onclick="showTab('admin')">Admin</button>
+</nav>
+
+<!-- TYPY -->
+<section id="tab-types" class="tab active">
+  <h2>Mecze do typowania</h2>
+  <div id="matchesContainer">
+    <!-- Mecze będą dodawane dynamicznie z JS -->
+  </div>
+</section>
+
+<!-- RANKING -->
+<section id="tab-ranking" class="tab">
+  <h2>Ranking</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Nick</th><th>Punkty</th></tr>
+    </thead>
+    <tbody id="rankingTable">
+      <!-- Ranking wypełni JS -->
+    </tbody>
+  </table>
+</section>
+
+<!-- PANEL ADMINA -->
+<section id="tab-admin" class="tab">
+  <h2>Panel Admina</h2>
+
+  <h3>Dodaj mecz</h3>
+  <div>
+    <input type="text" id="teamA" placeholder="Team A">
+    <input type="text" id="teamB" placeholder="Team B">
+    <input type="datetime-local" id="matchTime">
+    <input type="number" id="bop" placeholder="BOP" min="1" max="5">
+    <button onclick="addMatch()">Dodaj</button>
   </div>
 
-  <!-- Ustawienie nicku -->
-  <div id="nickname-tab" class="tab">
-    <h2>Wprowadź swój nick</h2>
-    <input type="text" id="nickname-input" placeholder="Twój nick">
-    <button id="save-nick">Zapisz</button>
+  <h3>Mecze</h3>
+  <div id="adminMatchesContainer">
+    <!-- Mecze w adminie -->
   </div>
 
-  <!-- Typowanie -->
-  <div id="typer-tab" class="tab">
-    <h2>Mecze do typowania</h2>
-    <div id="matches-list"></div>
+  <h3>Użytkownicy</h3>
+  <div id="adminUsersContainer">
+    <!-- Lista użytkowników -->
   </div>
+</section>
 
-  <!-- Ranking -->
-  <div id="ranking-tab" class="tab">
-    <h2>Ranking</h2>
-    <div id="ranking-list"></div>
-  </div>
+<script>
+  // --- Zakładki ---
+  function showTab(name){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  }
 
-  <!-- Panel admina -->
-  <div id="admin-tab" class="tab">
-    <h2>Panel admina</h2>
+  // --- Dane lokalne ---
+  let currentUser = { nick:'paweloks', points:0 };
+  let users = [ {...currentUser, role:'admin'} ];
+  let matches = [];
 
-    <h3>Dodaj mecz</h3>
-    <input type="text" id="teamA-input" placeholder="Team A">
-    <input type="text" id="teamB-input" placeholder="Team B">
-    <input type="datetime-local" id="match-date">
-    <input type="number" id="match-rounds" placeholder="Liczba rund">
-    <button id="add-match-btn">Dodaj mecz</button>
+  document.getElementById('userNick').innerText = currentUser.nick;
 
-    <h3>Mecze</h3>
-    <div id="admin-matches"></div>
+  // --- Dodawanie meczu ---
+  function addMatch(){
+    const teamA = document.getElementById('teamA').value;
+    const teamB = document.getElementById('teamB').value;
+    const startTime = document.getElementById('matchTime').value;
+    const bop = document.getElementById('bop').value;
 
-    <h3>Użytkownicy</h3>
-    <div id="admin-users"></div>
-  </div>
-</div>
+    if(!teamA || !teamB || !startTime || !bop) return alert('Wypełnij wszystkie pola');
+    
+    const match = {id:Date.now(), teamA, teamB, startTime, bop, results:null, types:[]};
+    matches.push(match);
+    renderMatches();
+    renderAdminMatches();
+  }
 
-<div class="notification" id="notification">✔ Typ zapisany</div>
+  // --- Renderowanie meczów ---
+  function renderMatches(){
+    const container = document.getElementById('matchesContainer');
+    container.innerHTML = '';
+    matches.forEach(m=>{
+      const startDate = new Date(m.startTime);
+      const btn = `<button onclick="submitType(${m.id})">Wyślij</button>`;
+      container.innerHTML += `<div class="match">
+        <div>${m.teamA} vs ${m.teamB} | ${startDate.toLocaleString()} | BOP: ${m.bop}</div>
+        <input type="text" id="scoreA_${m.id}" placeholder="0">
+        <input type="text" id="scoreB_${m.id}" placeholder="0">
+        ${btn}
+        <span class="status hidden" id="status_${m.id}">🟢 Typ oddany</span>
+      </div>`;
+    });
+  }
 
-<script src="script.js"></script>
+  function submitType(id){
+    const match = matches.find(m=>m.id===id);
+    const scoreA = document.getElementById('scoreA_'+id).value;
+    const scoreB = document.getElementById('scoreB_'+id).value;
+    match.types.push({user:currentUser.nick, scoreA, scoreB});
+    document.getElementById('status_'+id).classList.remove('hidden');
+    setTimeout(()=>document.getElementById('status_'+id).classList.add('hidden'),1500);
+    console.log('Typ oddany', match.types);
+  }
+
+  // --- Renderowanie w adminie ---
+  function renderAdminMatches(){
+    const container = document.getElementById('adminMatchesContainer');
+    container.innerHTML = '';
+    matches.forEach(m=>{
+      container.innerHTML += `<div class="match">
+        <div>${m.teamA} vs ${m.teamB} | ${new Date(m.startTime).toLocaleString()} | BOP: ${m.bop}</div>
+        <button onclick="deleteMatch(${m.id})" style="background:#ff4444;">Usuń</button>
+      </div>`;
+    });
+  }
+
+  function deleteMatch(id){
+    matches = matches.filter(m=>m.id!==id);
+    renderMatches();
+    renderAdminMatches();
+  }
+
+  // --- Renderowanie użytkowników ---
+  function renderAdminUsers(){
+    const container = document.getElementById('adminUsersContainer');
+    container.innerHTML = '';
+    users.forEach((u,i)=>{
+      container.innerHTML += `<div class="match">${i+1}. ${u.nick} (${u.role}) 
+        <button onclick="deleteUser('${u.nick}')" style="background:#ff4444;">Usuń</button></div>`;
+    });
+  }
+
+  function deleteUser(nick){
+    users = users.filter(u=>u.nick!==nick);
+    renderAdminUsers();
+  }
+
+  // Początkowe renderowanie
+  renderMatches();
+  renderAdminMatches();
+  renderAdminUsers();
+
+  function logout(){ alert('Wylogowano'); location.reload(); }
+
+</script>
 </body>
 </html>
