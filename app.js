@@ -1,7 +1,7 @@
 // ==============================
 // KONFIGURACJA
 // ==============================
-const adminEmail = 'TWÓJ_EMAIL@gmail.com'; // Twój mail admin
+const adminEmail = 'paweloxbieniek1@gmail.com'; // Twój mail admin
 let googleID = '';
 let nick = '';
 let role = 'user';
