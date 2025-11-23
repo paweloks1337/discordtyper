@@ -1,84 +1,239 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Typer CS2</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
+body { background:#0b0d10; color:#e6e7e8; }
+.accent { color:#ffd24d; }
+.btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; }
+.card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); }
+.tab { display:none; }
+.active-tab { display:block; }
+input, select { background:transparent; border:1px solid rgba(255,255,255,0.3); padding:0.5rem; border-radius:0.25rem; color:#fff; }
+</style>
 </head>
-<body class="bg-gray-900 text-white font-sans min-h-screen flex items-center justify-center">
+<body class="p-4">
 
-<div class="w-full max-w-3xl">
-  <!-- LOGOWANIE -->
-  <div id="loginCard" class="card p-6 bg-gray-800 rounded shadow-md text-center">
-    <h1 class="text-2xl font-bold mb-4">Typer CS2</h1>
-    <p class="mb-4">Turniejowy typer — logowanie Google</p>
-    <div id="g_id_onload"
-         data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-         data-login_uri=""
-         data-auto_prompt="false">
-    </div>
-    <div class="g_id_signin"
-         data-type="standard"
-         data-size="large"
-         data-theme="outline"
-         data-text="signin_with"
-         data-shape="rectangular"
-         data-logo_alignment="left">
-    </div>
+<div class="max-w-3xl mx-auto">
+
+<header class="mb-6 text-center">
+<h1 class="text-3xl font-extrabold accent">Typer CS2</h1>
+<p class="text-sm text-gray-400">Turniejowy typer – logowanie Google • żółte akcenty</p>
+</header>
+
+<div id="loginCard" class="card p-6 rounded-lg text-center">
+  <div id="g_id_onload"
+      data-client_id="TWÓJ_GOOGLE_CLIENT_ID"
+      data-context="signin"
+      data-ux_mode="popup"
+      data-callback="onGoogleSignIn">
   </div>
+  <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
+</div>
 
-  <!-- USTAWIENIE NICKU -->
-  <div id="nickSetup" class="hidden card p-6 bg-gray-800 rounded shadow-md text-center">
-    <h2 class="text-xl font-bold mb-2">Witaj! Ustaw swój nick</h2>
-    <input type="text" id="nickInput" class="p-2 w-full mb-4 rounded bg-gray-700 border border-gray-600" placeholder="Twój nick">
-    <button onclick="saveNick()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700">Zapisz nick</button>
-    <div id="nickMsg" class="mt-2 text-gray-400"></div>
-  </div>
-
-  <!-- GŁÓWNY PANEL -->
-  <div id="mainApp" class="hidden">
-    <div class="flex justify-between items-center mb-4">
-      <div id="userDisplay" class="font-semibold">Zalogowany</div>
-      <button onclick="signOut()" class="px-3 py-1 rounded bg-red-600 hover:bg-red-700">Wyloguj</button>
-    </div>
-
-    <!-- ZAKŁADKI -->
-    <div class="flex gap-2 mb-4">
-      <button onclick="showTab('types')" class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600">Typowanie</button>
-      <button onclick="showTab('ranking')" class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600">Ranking</button>
-      <button onclick="showTab('admin')" class="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600" id="adminTabBtn">Panel Admina</button>
-    </div>
-
-    <!-- TREŚĆ ZAKŁADEK -->
-    <div id="tab-types" class="tab">
-      <div id="meczeList"></div>
-    </div>
-
-    <div id="tab-ranking" class="tab hidden">
-      <div id="rankingList"></div>
-    </div>
-
-    <div id="tab-admin" class="tab hidden">
-      <h3 class="font-bold mb-2">Dodaj mecz</h3>
-      <input type="text" id="adminTeamA" placeholder="Team A" class="p-2 rounded bg-gray-700 border border-gray-600 mr-2">
-      <input type="text" id="adminTeamB" placeholder="Team B" class="p-2 rounded bg-gray-700 border border-gray-600 mr-2">
-      <input type="time" id="adminTime" class="p-2 rounded bg-gray-700 border border-gray-600 mr-2">
-      <input type="number" id="adminRounds" placeholder="Rundy" class="p-2 rounded bg-gray-700 border border-gray-600 mr-2">
-      <button onclick="adminDodajMecz()" class="px-3 py-1 rounded bg-green-600 hover:bg-green-700">Dodaj</button>
-
-      <h3 class="font-bold mt-4 mb-2">Lista meczów</h3>
-      <div id="adminMecze"></div>
-    </div>
+<div id="nickSetup" class="card p-4 rounded-lg mb-4" style="display:none;">
+  <h3 class="text-lg font-bold accent mb-2">Ustaw swój nick</h3>
+  <input id="nickInput" placeholder="Twój nick" maxlength="20"/>
+  <div class="mt-2">
+    <button class="btn px-4 py-2 rounded" onclick="saveNick()">Zapisz nick</button>
   </div>
 </div>
 
-<script src="script.js"></script>
+<div id="mainApp" style="display:none;">
+  <nav class="flex gap-2 mb-4">
+    <button class="px-4 py-2 rounded card" onclick="showTab('types')">TYPY</button>
+    <button class="px-4 py-2 rounded card" onclick="showTab('ranking')">RANKING</button>
+    <button class="px-4 py-2 rounded card" onclick="showTab('admin')">PANEL ADMINA</button>
+    <div class="ml-auto flex items-center gap-3">
+      <div id="userDisplay" class="text-sm text-gray-300"></div>
+      <button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+    </div>
+  </nav>
+
+  <section id="tab-types" class="tab card p-4 rounded-lg">
+    <h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
+    <div id="meczeList" class="space-y-3"></div>
+  </section>
+
+  <section id="tab-ranking" class="tab card p-4 rounded-lg">
+    <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
+    <div id="rankingList"></div>
+  </section>
+
+  <section id="tab-admin" class="tab card p-4 rounded-lg">
+    <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
+    <div>
+      <h3 class="font-semibold mb-1">Dodaj mecz</h3>
+      <input id="adminTeamA" placeholder="Team A"/>
+      <input id="adminTeamB" placeholder="Team B"/>
+      <input id="adminTime" type="time"/>
+      <select id="adminBOP">
+        <option value="1">Bo1</option>
+        <option value="3">Bo3</option>
+        <option value="5">Bo5</option>
+      </select>
+      <button class="btn px-3 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
+    </div>
+    <div class="mt-4">
+      <h3 class="font-semibold mb-1">Mecze</h3>
+      <div id="adminMecze"></div>
+    </div>
+  </section>
+</div>
+
+<footer class="mt-6 text-xs text-gray-500 text-center">Made for quick CS2 typer • LocalStorage backend</footer>
+
+</div>
+
 <script>
-  // ukryj zakładkę admin jeśli user nie admin
-  document.getElementById('adminTabBtn').style.display = 'none';
+let googleID = '';
+let nick = '';
+let role = 'user';
+
+let users = JSON.parse(localStorage.getItem('users')||'[]');
+let matches = JSON.parse(localStorage.getItem('matches')||'[]');
+let bets = JSON.parse(localStorage.getItem('bets')||'[]');
+
+function showTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active-tab'));
+  document.getElementById('tab-'+tab).classList.add('active-tab');
+}
+
+/* Google Sign-In callback */
+function onGoogleSignIn(response){
+  const data = jwt_decode(response.credential);
+  googleID = data.sub;
+  const givenName = data.name || data.email || 'Gracz';
+  let u = users.find(x=>x.id===googleID);
+  if(u){
+    nick = u.nick;
+    role = u.role;
+    afterLogin();
+  } else {
+    document.getElementById('loginCard').style.display='none';
+    document.getElementById('nickSetup').style.display='block';
+    document.getElementById('nickInput').value = givenName;
+  }
+}
+
+function saveNick(){
+  const v = document.getElementById('nickInput').value.trim();
+  if(!v){ alert('Nick za krótki'); return; }
+  nick = v;
+  users.push({id:googleID,nick:nick,role:'user'});
+  localStorage.setItem('users',JSON.stringify(users));
+  document.getElementById('nickSetup').style.display='none';
+  afterLogin();
+}
+
+function afterLogin(){
+  document.getElementById('loginCard').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('userDisplay').textContent = nick + (role==='admin'?' (admin)':'');
+  showTab('types');
+  renderMatches();
+  renderRanking();
+  if(role==='admin') renderAdminPanel();
+}
+
+function signOut(){
+  location.reload();
+}
+
+function renderMatches(){
+  const now = new Date();
+  const container = document.getElementById('meczeList');
+  container.innerHTML='';
+  if(matches.length===0){ container.innerHTML='<div class="text-gray-400">Brak meczów.</div>'; return; }
+  matches.forEach(m=>{
+    const matchDate = new Date();
+    const [h,min]=m.time.split(':');
+    matchDate.setHours(h,min,0);
+    const disabled = now>matchDate;
+    const card = document.createElement('div');
+    card.className='p-3 rounded card flex flex-col gap-2';
+    card.innerHTML=`
+      <div><strong>${m.teamA}</strong> vs <strong>${m.teamB}</strong> (${m.bop}) o ${m.time}</div>
+      <select ${disabled?'disabled':''} id="winner_${m.id}">
+        <option value="${m.teamA}">${m.teamA}</option>
+        <option value="${m.teamB}">${m.teamB}</option>
+      </select>
+      <input ${disabled?'disabled':''} type="number" id="scoreA_${m.id}" placeholder="A"/>
+      <input ${disabled?'disabled':''} type="number" id="scoreB_${m.id}" placeholder="B"/>
+      <button class="btn px-2 py-1 rounded" ${disabled?'disabled':''} onclick="submitBet('${m.id}')">Wyślij typ</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function submitBet(matchId){
+  const winner = document.getElementById('winner_'+matchId).value;
+  const scoreA = document.getElementById('scoreA_'+matchId).value;
+  const scoreB = document.getElementById('scoreB_'+matchId).value;
+  bets.push({user:nick,matchId,winner,scoreA,scoreB,points:0});
+  localStorage.setItem('bets',JSON.stringify(bets));
+  alert('Typ zapisany!');
+  renderRanking();
+}
+
+function renderRanking(){
+  const container = document.getElementById('rankingList');
+  container.innerHTML='';
+  let scores = {};
+  bets.forEach(b=>{
+    scores[b.user] = (scores[b.user]||0)+parseInt(b.points||0);
+  });
+  const arr = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  arr.forEach(([u,p],i)=>{
+    const el = document.createElement('div');
+    el.className='flex justify-between p-2';
+    el.innerHTML=`${i+1}. ${u} - ${p} pkt`;
+    container.appendChild(el);
+  });
+}
+
+function adminDodajMecz(){
+  const teamA=document.getElementById('adminTeamA').value.trim();
+  const teamB=document.getElementById('adminTeamB').value.trim();
+  const time=document.getElementById('adminTime').value;
+  const bop=document.getElementById('adminBOP').value;
+  if(!teamA||!teamB||!time){ alert('Wypełnij wszystkie pola'); return; }
+  const id='m'+Date.now();
+  matches.push({id,teamA,teamB,time,bop});
+  localStorage.setItem('matches',JSON.stringify(matches));
+  renderMatches();
+  renderAdminPanel();
+}
+
+function renderAdminPanel(){
+  const container=document.getElementById('adminMecze');
+  container.innerHTML='';
+  matches.forEach(m=>{
+    const row=document.createElement('div');
+    row.className='p-2 flex gap-2 items-center';
+    row.innerHTML=`
+      <div>${m.teamA} vs ${m.teamB} (${m.bop}) o ${m.time}</div>
+      <button class="btn px-2 py-1 rounded" onclick="removeMatch('${m.id}')">Usuń</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function removeMatch(id){
+  matches=matches.filter(m=>m.id!==id);
+  localStorage.setItem('matches',JSON.stringify(matches));
+  renderMatches();
+  renderAdminPanel();
+}
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
 </body>
 </html>
