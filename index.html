@@ -1,81 +1,218 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typer CS2</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    .tab { display: none; }
-    .tab.active { display: block; }
-    .matchCard { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center; }
-    .matchCard button { transition: all 0.2s; }
-    .matchCard button:hover { transform: scale(1.05); }
-    .status { font-weight: bold; margin-left: 1rem; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typer CS2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #4f46e5;
+        --secondary: #10b981;
+        --bg: #f9fafb;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+        background: var(--primary);
+        color: white;
+        padding: 1rem 2rem;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+
+    header h1 { font-size: 1.5rem; }
+    header button { background: white; color: var(--primary); border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+    header button:hover { background: #e0e7ff; }
+
+    nav {
+        display: flex;
+        justify-content: center;
+        background: #e5e7eb;
+        padding: 0.5rem 0;
+    }
+
+    nav button {
+        background: transparent;
+        border: none;
+        margin: 0 1rem;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    nav button.active, nav button:hover {
+        border-bottom: 3px solid var(--primary);
+        color: var(--primary);
+    }
+
+    main { flex: 1; padding: 2rem; }
+
+    .tab-content { display: none; animation: fadeIn 0.5s ease; }
+    .tab-content.active { display: block; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .match-card {
+        background: var(--card);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        display: flex; justify-content: space-between; align-items: center;
+        transition: 0.3s;
+    }
+
+    .match-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+    .match-info { display: flex; flex-direction: column; }
+    .match-teams { font-weight: 600; font-size: 1.1rem; }
+    .match-time { font-size: 0.9rem; color: var(--muted); }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.3s;
+        font-weight: 600;
+    }
+
+    .btn-submit { background: var(--primary); color: white; }
+    .btn-submit:hover { background: #4338ca; }
+
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    .input-score { width: 50px; padding: 0.3rem; border-radius: 4px; border: 1px solid #d1d5db; margin: 0 0.3rem; }
+
+    .notification {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        padding: 1rem 1.5rem;
+        border-radius: 6px;
+        color: white;
+        font-weight: 600;
+        display: none;
+        opacity: 0;
+        transition: 0.3s;
+    }
+
+    .notification.show { display: block; opacity: 1; }
+
+    .notification.success { background: var(--secondary); }
+    .notification.error { background: var(--danger); }
+
+    /* Ranking */
+    .ranking-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .ranking-table th, .ranking-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    .ranking-table th { background: #f3f4f6; }
+
+    /* Admin panel */
+    .admin-section { margin-bottom: 2rem; }
+    .admin-section h3 { margin-bottom: 1rem; }
+    .admin-section input, .admin-section select { padding: 0.5rem; margin-right: 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; }
+    .admin-section button { margin-top: 0.5rem; }
+
+</style>
 </head>
-<body class="bg-gray-100 font-sans">
-
-  <!-- LOGIN -->
-  <section id="loginSection" class="flex flex-col items-center justify-center min-h-screen">
-    <h1 class="text-3xl font-bold mb-4">Typer CS2</h1>
-    <p class="mb-4 text-gray-700">Turniejowy typer — logowanie Google</p>
-    <button id="loginBtn" class="bg-blue-500 text-white px-6 py-2 rounded shadow hover:bg-blue-600">Zaloguj przez Google</button>
-  </section>
-
-  <!-- APP -->
-  <section id="appSection" class="hidden p-6">
-    <div class="flex justify-between items-center mb-4">
-      <span id="userLabel" class="font-bold text-lg"></span>
-      <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Wyloguj</button>
+<body>
+<header>
+    <h1>Typer CS2</h1>
+    <div>
+        <span id="user-name">Zaloguj</span>
+        <button id="logoutBtn" style="display:none;">Wyloguj</button>
     </div>
+</header>
 
-    <!-- Nick input -->
-    <div class="mb-6">
-      <input id="nicknameInput" type="text" placeholder="Wprowadź swój nick" class="border px-3 py-2 rounded mr-2">
-      <button id="saveNickBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Zapisz</button>
-    </div>
+<nav>
+    <button class="tab-btn active" data-tab="typowanie">Typowanie</button>
+    <button class="tab-btn" data-tab="ranking">Ranking</button>
+    <button class="tab-btn" data-tab="admin">Panel Admina</button>
+</nav>
 
-    <!-- Tabs -->
-    <div class="flex space-x-4 mb-6">
-      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="0">Typowanie</button>
-      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="1">Ranking</button>
-      <button class="tabBtn bg-gray-300 px-4 py-2 rounded hover:bg-gray-400" data-tab="2">Panel Admina</button>
-    </div>
+<main>
+    <!-- Typowanie -->
+    <section id="typowanie" class="tab-content active">
+        <h2>Mecze do typowania</h2>
+        <div id="matches-list">
+            <!-- Mecze będą wstawiane dynamicznie przez JS -->
+        </div>
+    </section>
 
-    <!-- Tab Contents -->
-    <div id="tabsContainer">
-      <!-- Typowanie -->
-      <div class="tab active" id="tab0">
-        <h2 class="text-xl font-bold mb-4">Mecze do typowania</h2>
-        <div id="matchesContainer"></div>
-      </div>
+    <!-- Ranking -->
+    <section id="ranking" class="tab-content">
+        <h2>Ranking</h2>
+        <table class="ranking-table">
+            <thead>
+                <tr><th>#</th><th>Nick</th><th>Punkty</th></tr>
+            </thead>
+            <tbody id="ranking-list">
+                <!-- Ranking wstawiany dynamicznie przez JS -->
+            </tbody>
+        </table>
+    </section>
 
-      <!-- Ranking -->
-      <div class="tab" id="tab1">
-        <h2 class="text-xl font-bold mb-4">Ranking</h2>
-        <div id="rankingContainer">Ładowanie...</div>
-      </div>
-
-      <!-- Panel Admina -->
-      <div class="tab" id="tab2">
-        <h2 class="text-xl font-bold mb-4">Panel Admina</h2>
-
-        <!-- Dodaj mecz -->
-        <div class="mb-6">
-          <input id="adminTeamA" type="text" placeholder="Team A" class="border px-3 py-2 rounded mr-2">
-          <input id="adminTeamB" type="text" placeholder="Team B" class="border px-3 py-2 rounded mr-2">
-          <input id="adminBOP" type="number" placeholder="BOP" class="border px-3 py-2 rounded mr-2">
-          <input id="adminTime" type="datetime-local" class="border px-3 py-2 rounded mr-2">
-          <button id="addMatchBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Dodaj</button>
+    <!-- Panel Admina -->
+    <section id="admin" class="tab-content">
+        <div class="admin-section">
+            <h3>Dodaj mecz</h3>
+            <input type="text" id="teamA" placeholder="Team A">
+            <input type="text" id="teamB" placeholder="Team B">
+            <input type="time" id="matchTime">
+            <input type="number" id="bop" placeholder="BOP" min="1" max="7">
+            <button class="btn btn-submit" id="addMatchBtn">Dodaj</button>
         </div>
 
-        <div id="adminMatchesContainer" class="mb-6"></div>
-        <div id="adminUsersContainer"></div>
-      </div>
-    </div>
-  </section>
+        <div class="admin-section">
+            <h3>Mecze</h3>
+            <div id="admin-matches-list"></div>
+        </div>
 
-  <script src="script.js" type="module"></script>
+        <div class="admin-section">
+            <h3>Użytkownicy</h3>
+            <div id="admin-users-list"></div>
+        </div>
+    </section>
+</main>
+
+<!-- Powiadomienia -->
+<div id="notification" class="notification"></div>
+
+<script>
+    // Zakładamy, że Twój JS Firebase i logowanie działa. Tutaj tylko obsługa zakładek i powiadomień
+    const tabs = document.querySelectorAll('.tab-btn');
+    const contents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const tabId = tab.getAttribute('data-tab');
+            contents.forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    function showNotification(message, type="success") {
+        const notif = document.getElementById('notification');
+        notif.textContent = message;
+        notif.className = `notification ${type} show`;
+        setTimeout(() => { notif.className = `notification ${type}`; }, 2000);
+    }
+
+    // Testowe powiadomienie
+    // showNotification("Typ został zapisany!", "success");
+</script>
 </body>
 </html>
