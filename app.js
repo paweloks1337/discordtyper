@@ -9,8 +9,6 @@ const firebaseConfig = {
     messagingSenderId: "533657649328",
     appId: "1:533657649328:web:e220acd6865b489fa6bb75"
 };
-
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -24,95 +22,55 @@ const adminEmails = ["paweloxbieniek1@gmail.com"];
 let matches = [];
 let users = [];
 let rankings = {};
-let userHistory = [];
 
 // -----------------------
-// DOM ELEMENTS
+// AUTHENTICATION
 // -----------------------
-const loginPanel = document.getElementById("login-panel");
-const loginBtn = document.getElementById("loginBtn");
-const header = document.querySelector("header");
-const nav = document.querySelector("nav");
-const main = document.querySelector("main");
+const loginBtn = document.getElementById("user-name");
 const logoutBtn = document.getElementById("logoutBtn");
-const userNameSpan = document.getElementById("user-name");
-const nicknamePanel = document.createElement("div");
 
-// -----------------------
-// LOGIN / AUTH
-// -----------------------
-loginBtn.addEventListener("click", async () => {
+loginBtn.addEventListener("click", () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-        await auth.signInWithPopup(provider);
-    } catch (e) {
-        showNotification("Błąd logowania!", "error");
-        console.error(e);
-    }
+    auth.signInWithPopup(provider);
 });
 
 logoutBtn.addEventListener("click", () => auth.signOut());
 
-auth.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "inline-block";
 
-        // Sprawdź czy użytkownik ma ustawiony nick
-        const userDoc = await db.collection("users").doc(user.uid).get();
-        if (!userDoc.exists || !userDoc.data().nick) {
-            showNicknamePanel(user);
-        } else {
-            loginPanel.style.display = "none";
-            header.style.display = "flex";
-            nav.style.display = "flex";
-            main.style.display = "block";
-            userNameSpan.textContent = `Zalogowany jako: ${userDoc.data().nick}`;
-            checkAdmin(user.email);
-            loadData();
+        // Sprawdź czy użytkownik istnieje w bazie
+        const userRef = db.collection("users").doc(user.uid);
+        const doc = await userRef.get();
+        if (!doc.exists) {
+            // jeśli pierwszy login -> ustaw nick
+            const nick = prompt("Wybierz swój nick:");
+            await userRef.set({
+                nick: nick || user.displayName || "Gracz",
+                email: user.email,
+                points: 0
+            });
         }
+        const userDoc = await userRef.get();
+        document.getElementById("user-name").textContent = `Zalogowany jako: ${userDoc.data().nick}`;
+
+        checkAdmin(user.email);
+        loadData();
     } else {
         currentUser = null;
-        loginPanel.style.display = "flex";
-        header.style.display = "none";
-        nav.style.display = "none";
-        main.style.display = "none";
-        matches = [];
-        users = [];
-        rankings = {};
-        userHistory = [];
+        loginBtn.style.display = "inline-block";
+        logoutBtn.style.display = "none";
+        document.getElementById("user-name").textContent = "Zaloguj";
+        document.getElementById("matches-list").innerHTML = "";
+        document.getElementById("ranking-list").innerHTML = "";
+        document.getElementById("admin-matches-list").innerHTML = "";
+        document.getElementById("admin-users-list").innerHTML = "";
     }
 });
 
-// -----------------------
-// NICKNAME SETTING
-// -----------------------
-function showNicknamePanel(user) {
-    loginPanel.innerHTML = `
-    <div class="login-box">
-        <h2>Witaj ${user.displayName}! Wybierz swój nick:</h2>
-        <div id="nickname-panel">
-            <input type="text" id="nickname-input" placeholder="Twój nick">
-            <button id="setNicknameBtn">Zapisz nick</button>
-        </div>
-    </div>`;
-    const setBtn = document.getElementById("setNicknameBtn");
-    setBtn.addEventListener("click", async () => {
-        const nick = document.getElementById("nickname-input").value.trim();
-        if (!nick) return showNotification("Podaj nick!", "error");
-        await db.collection("users").doc(user.uid).set({ nick, points: 0, email: user.email }, { merge: true });
-        loginPanel.style.display = "none";
-        header.style.display = "flex";
-        nav.style.display = "flex";
-        main.style.display = "block";
-        userNameSpan.textContent = `Zalogowany jako: ${nick}`;
-        checkAdmin(user.email);
-        loadData();
-    });
-}
-
-// -----------------------
-// ADMIN CHECK
-// -----------------------
 function checkAdmin(email) {
     isAdmin = adminEmails.includes(email);
     const adminTab = document.querySelector('nav button[data-tab="admin"]');
@@ -123,20 +81,18 @@ function checkAdmin(email) {
 // LOAD DATA
 // -----------------------
 async function loadData() {
-    const matchesSnap = await db.collection("matches").orderBy("startTime").get();
-    matches = matchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Load matches
+    const snapshotMatches = await db.collection("matches").orderBy("startTime").get();
+    matches = snapshotMatches.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const usersSnap = await db.collection("users").get();
-    users = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Load users
+    const snapshotUsers = await db.collection("users").get();
+    users = snapshotUsers.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const typesSnap = await db.collectionGroup("types").where("userId","==",currentUser.uid).get();
-    userHistory = typesSnap.docs.map(doc => doc.data());
-
-    buildRanking();
     renderMatches();
+    renderRanking();
     renderAdminMatches();
     renderAdminUsers();
-    renderHistory();
 }
 
 // -----------------------
@@ -164,8 +120,11 @@ function renderMatches() {
                 <button class="btn btn-submit" onclick="submitType('${match.id}')" ${!canType ? "disabled" : ""}>Wyślij</button>
             </div>
             <div class="type-feedback" id="feedback_${match.id}"></div>
+            <div class="history-feedback" id="history_${match.id}"></div>
         `;
         container.appendChild(div);
+
+        renderUserHistory(match.id);
 
         if (canType) startCountdown(match.id, start);
     });
@@ -174,17 +133,16 @@ function renderMatches() {
 // -----------------------
 // HISTORY
 // -----------------------
-function renderHistory() {
-    const container = document.getElementById("history-list");
-    container.innerHTML = "";
-    if (!userHistory.length) return container.textContent = "Nie oddałeś jeszcze żadnego typu.";
-
-    userHistory.forEach(t => {
-        const div = document.createElement("div");
-        div.className = "match-card";
-        div.textContent = `${t.nick}: ${t.scoreA} - ${t.scoreB} (mecz: ${t.matchId || "??"})`;
-        container.appendChild(div);
-    });
+async function renderUserHistory(matchId) {
+    if (!currentUser) return;
+    const historyDiv = document.getElementById(`history_${matchId}`);
+    const doc = await db.collection("matches").doc(matchId).collection("types").doc(currentUser.uid).get();
+    if (doc.exists) {
+        const data = doc.data();
+        historyDiv.textContent = `Twój typ: ${data.scoreA} : ${data.scoreB}`;
+    } else {
+        historyDiv.textContent = "";
+    }
 }
 
 // -----------------------
@@ -211,8 +169,11 @@ function startCountdown(matchId, startTime) {
 // SUBMIT TYPE
 // -----------------------
 async function submitType(matchId) {
+    if (!currentUser) return showNotification("Zaloguj się najpierw!", "error");
+
     const scoreA = parseInt(document.getElementById(`scoreA_${matchId}`).value);
     const scoreB = parseInt(document.getElementById(`scoreB_${matchId}`).value);
+
     if (isNaN(scoreA) || isNaN(scoreB)) return showNotification("Podaj poprawne wyniki!", "error");
 
     await db.collection("matches").doc(matchId).collection("types").doc(currentUser.uid).set({
@@ -220,30 +181,29 @@ async function submitType(matchId) {
         nick: currentUser.displayName,
         scoreA,
         scoreB,
-        matchId,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     showNotification("🟢 Typ oddany!", "success");
-    loadData();
+
+    renderUserHistory(matchId);
 }
 
 // -----------------------
 // RANKING
 // -----------------------
-function buildRanking() {
-    rankings = {};
-    users.forEach(u => rankings[u.id] = u.points || 0);
-    renderRanking();
-}
-
 function renderRanking() {
     const tbody = document.getElementById("ranking-list");
     tbody.innerHTML = "";
-    const sorted = Object.entries(rankings).sort((a,b) => b[1]-a[1]);
+
+    const rankingMap = {};
+    users.forEach(u => rankingMap[u.id] = u.points || 0);
+    const sorted = Object.entries(rankingMap).sort((a,b) => b[1]-a[1]);
+
     sorted.forEach(([uid, points], index) => {
         const user = users.find(u => u.id === uid);
+        const badge = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "";
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${index+1}${index<3?" ⭐":""}</td><td>${user.nick}</td><td>${points}</td>`;
+        tr.innerHTML = `<td>${index+1} ${badge}</td><td>${user.nick}</td><td>${points}</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -259,14 +219,27 @@ document.getElementById("addMatchBtn").addEventListener("click", async () => {
 
     if (!teamA || !teamB || !bop || !time) return showNotification("Uzupełnij wszystkie pola!", "error");
 
-    await db.collection("matches").add({ teamA, teamB, bop, startTime: new Date(time) });
-    showNotification("Mecz dodany!", "success");
-    loadData();
+    const [hours, minutes] = time.split(":").map(Number);
+    const startTime = new Date();
+    startTime.setHours(hours, minutes, 0, 0);
 
-    document.getElementById("teamA").value = "";
-    document.getElementById("teamB").value = "";
-    document.getElementById("bop").value = "";
-    document.getElementById("matchTime").value = "";
+    try {
+        await db.collection("matches").add({
+            teamA,
+            teamB,
+            bop,
+            startTime: firebase.firestore.Timestamp.fromDate(startTime)
+        });
+        showNotification("Mecz dodany!", "success");
+        loadData();
+        document.getElementById("teamA").value = "";
+        document.getElementById("teamB").value = "";
+        document.getElementById("bop").value = "";
+        document.getElementById("matchTime").value = "";
+    } catch (err) {
+        console.error(err);
+        showNotification("Błąd przy dodawaniu meczu!", "error");
+    }
 });
 
 function renderAdminMatches() {
@@ -276,7 +249,7 @@ function renderAdminMatches() {
         const div = document.createElement("div");
         div.className = "match-card";
         div.innerHTML = `
-            ${match.teamA} vs ${match.teamB} | ${new Date(match.startTime).toLocaleString()}
+            ${match.teamA} vs ${match.teamB} | ${new Date(match.startTime.toDate ? match.startTime.toDate() : match.startTime).toLocaleString()}
             <button class="btn btn-danger" onclick="deleteMatch('${match.id}')">Usuń</button>
         `;
         container.appendChild(div);
@@ -298,17 +271,15 @@ function renderAdminUsers() {
 }
 
 async function deleteMatch(id) {
-    if (confirm("Na pewno chcesz usunąć mecz?")) {
-        await db.collection("matches").doc(id).delete();
-        loadData();
-    }
+    if (!confirm("Na pewno chcesz usunąć mecz?")) return;
+    await db.collection("matches").doc(id).delete();
+    loadData();
 }
 
 async function deleteUser(id) {
-    if (confirm("Na pewno chcesz usunąć użytkownika?")) {
-        await db.collection("users").doc(id).delete();
-        loadData();
-    }
+    if (!confirm("Na pewno chcesz usunąć użytkownika?")) return;
+    await db.collection("users").doc(id).delete();
+    loadData();
 }
 
 // -----------------------
@@ -320,18 +291,3 @@ function showNotification(msg, type="success") {
     notif.className = `notification ${type} show`;
     setTimeout(() => { notif.className = `notification ${type}`; }, 2000);
 }
-
-// -----------------------
-// TABS
-// -----------------------
-const tabs = document.querySelectorAll('.tab-btn');
-const contents = document.querySelectorAll('.tab-content');
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const tabId = tab.getAttribute('data-tab');
-        contents.forEach(c => c.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-    });
-});
