@@ -1,121 +1,83 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Typer CS2</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
-<style>
-body { background:#0b0d10; color:#e6e7e8; font-family:sans-serif; }
-.accent { color:#ffd24d; }
-.btn { background: linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition: all 0.2s; }
-.btn:hover { transform: scale(1.05); }
-.card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); border-radius:12px; padding:1rem; }
-.hidden { display:none; }
-.tab-btn-active { background:#ffd24d; color:#0b0d10; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typer CS2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Roboto', sans-serif; margin:0; padding:0; background: #1f1f2e; color:#fff; }
+    header { padding: 1rem; background: linear-gradient(90deg,#4e54c8,#8f94fb); display:flex; justify-content:space-between; align-items:center;}
+    h1 { margin:0; font-size:1.5rem; }
+    button { padding:0.5rem 1rem; border:none; border-radius:5px; cursor:pointer; transition: all 0.2s ease; }
+    button:hover { transform: scale(1.05); }
+    .container { padding:2rem; max-width:900px; margin:auto; }
+    .tab { display:none; margin-top:1rem; }
+    .tab.active { display:block; }
+    .match-card, .user-card, .rank-card { background:#2a2a3d; padding:1rem; margin-bottom:1rem; border-radius:10px; display:flex; justify-content:space-between; align-items:center; }
+    .match-actions button { margin-left:0.5rem; }
+    input[type="text"], input[type="number"], input[type="datetime-local"] { padding:0.5rem; border-radius:5px; border:none; width:100%; margin-bottom:0.5rem; }
+    .notification { position:fixed; top:1rem; right:1rem; background:#4caf50; padding:0.5rem 1rem; border-radius:5px; display:none; }
+  </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="p-4">
+<body>
 
-<!-- LOGIN -->
-<div id="loginCard" class="flex flex-col items-center justify-center h-screen">
-  <h1 class="text-4xl font-bold mb-6 accent">Typer CS2</h1>
-  <p class="mb-4 text-gray-300">Turniejowy typer — logowanie Google</p>
-  <div id="g_id_onload"
-       data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-       data-context="signin"
-       data-ux_mode="popup"
-       data-callback="onGoogleSignIn">
+<header>
+  <h1>Typer CS2</h1>
+  <div id="user-info">
+    <span id="user-nick"></span>
+    <button id="logout-btn" style="display:none;">Wyloguj</button>
   </div>
-  <div class="g_id_signin" data-type="standard"></div>
-</div>
+</header>
 
-<!-- NICK SETUP -->
-<div id="nickSetup" class="hidden flex flex-col items-center justify-center h-screen">
-  <h2 class="text-2xl font-bold accent mb-4">Wprowadź swój nick</h2>
-  <input id="nickInput" placeholder="Twój nick" class="p-2 rounded text-black mb-2 w-64"/>
-  <div class="flex gap-2">
-    <button onclick="saveNick()" class="btn px-4 py-2 rounded">Zapisz nick</button>
-    <button onclick="signOut()" class="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700">Wyloguj</button>
+<div class="container">
+  <!-- Logowanie -->
+  <div id="login-tab" class="tab active">
+    <div id="g_id_onload" data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com" data-callback="handleCredentialResponse"></div>
+    <div class="g_id_signin" data-type="standard"></div>
   </div>
-  <p id="nickMsg" class="mt-2 text-red-400"></p>
+
+  <!-- Ustawienie nicku -->
+  <div id="nickname-tab" class="tab">
+    <h2>Wprowadź swój nick</h2>
+    <input type="text" id="nickname-input" placeholder="Twój nick">
+    <button id="save-nick">Zapisz</button>
+  </div>
+
+  <!-- Typowanie -->
+  <div id="typer-tab" class="tab">
+    <h2>Mecze do typowania</h2>
+    <div id="matches-list"></div>
+  </div>
+
+  <!-- Ranking -->
+  <div id="ranking-tab" class="tab">
+    <h2>Ranking</h2>
+    <div id="ranking-list"></div>
+  </div>
+
+  <!-- Panel admina -->
+  <div id="admin-tab" class="tab">
+    <h2>Panel admina</h2>
+
+    <h3>Dodaj mecz</h3>
+    <input type="text" id="teamA-input" placeholder="Team A">
+    <input type="text" id="teamB-input" placeholder="Team B">
+    <input type="datetime-local" id="match-date">
+    <input type="number" id="match-rounds" placeholder="Liczba rund">
+    <button id="add-match-btn">Dodaj mecz</button>
+
+    <h3>Mecze</h3>
+    <div id="admin-matches"></div>
+
+    <h3>Użytkownicy</h3>
+    <div id="admin-users"></div>
+  </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="mainApp" class="hidden max-w-4xl mx-auto flex flex-col gap-4">
-  <!-- NAV -->
-  <nav class="flex gap-2 mb-4">
-    <button class="px-4 py-2 card tab-btn-active" id="tabTypesBtn" onclick="showTab('types')">Typowanie</button>
-    <button class="px-4 py-2 card" id="tabRankingBtn" onclick="showTab('ranking')">Ranking</button>
-    <button class="px-4 py-2 card" id="tabAdminBtn" onclick="showTab('admin')">Admin</button>
-    <div class="ml-auto flex items-center gap-3">
-      <div id="userDisplay" class="text-sm text-gray-300"></div>
-      <button class="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700" onclick="signOut()">Wyloguj</button>
-    </div>
-  </nav>
+<div class="notification" id="notification">✔ Typ zapisany</div>
 
-  <!-- TAB: Typowanie -->
-  <section id="tab-types" class="tab card">
-    <h2 class="text-xl font-bold accent mb-3">Mecze do typowania</h2>
-    <div id="meczeList" class="space-y-3"></div>
-  </section>
-
-  <!-- TAB: Ranking -->
-  <section id="tab-ranking" class="tab card hidden">
-    <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
-    <div id="rankingList" class="space-y-2"></div>
-  </section>
-
-  <!-- TAB: Admin -->
-  <section id="tab-admin" class="tab card hidden">
-    <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
-
-    <!-- Dodaj mecz -->
-    <div class="mb-4">
-      <h3 class="font-semibold">Dodaj mecz</h3>
-      <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
-      <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/3 bg-transparent border"/>
-      <input id="adminTime" type="time" class="p-2 rounded w-1/4 ml-2 bg-transparent border"/>
-      <div class="mt-2">
-        <button class="btn px-3 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
-      </div>
-    </div>
-
-    <!-- Mecze admin -->
-    <div class="mb-4">
-      <h3 class="font-semibold">Mecze</h3>
-      <div id="adminMecze" class="space-y-2"></div>
-    </div>
-
-    <!-- Użytkownicy -->
-    <div class="mb-4">
-      <h3 class="font-semibold">Użytkownicy</h3>
-      <div id="adminUsers" class="space-y-2"></div>
-    </div>
-  </section>
-</div>
-
-<!-- Footer -->
-<footer class="mt-6 text-xs text-gray-500 text-center">Made for quick CS2 typer • SheetDB backend</footer>
-
-<script>
-/* ======== TAB FUNCTION ======= */
-function showTab(name){
-  document.querySelectorAll('.tab').forEach(el=>el.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-
-  ['Types','Ranking','Admin'].forEach(lbl=>{
-    document.getElementById('tab'+lbl+'Btn').classList.remove('tab-btn-active');
-  });
-  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)+'Btn').classList.add('tab-btn-active');
-}
-
-/* Default tab */
-showTab('types');
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
