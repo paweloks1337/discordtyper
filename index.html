@@ -3,97 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Typer CS2 - Neon Edition</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root {
-    --primary: #0ff;       /* neon cyan */
-    --secondary: #ff00ff;  /* neon magenta */
-    --bg: #0a0a0a;
-    --card: #111;
-    --text: #e0e0e0;
-    --muted: #888;
-    --danger: #ff0044;
-    --success: #00ff55;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-
-header {
-    background: transparent;
-    padding: 1rem 2rem;
-    display: flex; justify-content: space-between; align-items: center;
-}
-
-header h1 { font-family: 'Orbitron', sans-serif; font-size: 2rem; color: var(--primary); text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
-header button { background: var(--primary); color: var(--bg); border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.3s; text-shadow: 0 0 5px var(--bg); }
-header button:hover { transform: scale(1.05); box-shadow: 0 0 10px var(--primary), 0 0 20px var(--secondary); }
-
-nav { display: flex; justify-content: center; margin-top: 1rem; }
-nav button { background: transparent; border: 2px solid var(--primary); margin: 0 0.5rem; padding: 0.5rem 1rem; font-weight: 600; color: var(--primary); border-radius: 6px; cursor: pointer; transition: 0.3s; }
-nav button.active, nav button:hover { background: var(--primary); color: var(--bg); box-shadow: 0 0 10px var(--primary); }
-
-main { flex: 1; padding: 2rem; }
-
-/* Panel logowania fullscreen */
-#login-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #050505; }
-#login-panel h2 { font-family: 'Orbitron', sans-serif; color: var(--secondary); font-size: 2rem; margin-bottom: 2rem; text-shadow: 0 0 10px var(--secondary); }
-#login-panel button { padding: 1rem 2rem; font-size: 1.2rem; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; background: linear-gradient(45deg,var(--primary),var(--secondary)); color: #000; text-shadow: none; box-shadow: 0 0 15px var(--primary),0 0 30px var(--secondary); transition: 0.3s; }
-#login-panel button:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--primary),0 0 40px var(--secondary); }
-
-.tab-content { display: none; animation: fadeIn 0.5s ease; }
-.tab-content.active { display: block; }
-
-@keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1; transform: translateY(0);} }
-
-.match-card {
-    background: var(--card);
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 12px;
-    box-shadow: 0 0 15px #00ffff50, 0 0 30px #ff00ff50;
-    display: flex; justify-content: space-between; align-items: center;
-    transition: transform 0.3s, box-shadow 0.3s;
-}
-.match-card:hover { transform: translateY(-3px) rotateX(5deg); box-shadow: 0 0 20px #00ffff,0 0 40px #ff00ff; }
-
-.match-info { display: flex; flex-direction: column; }
-.match-teams { font-weight: 700; font-size: 1.2rem; color: var(--primary); text-shadow: 0 0 5px var(--primary); }
-.match-time { font-size: 0.9rem; color: var(--muted); }
-
-.btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-.btn-submit { background: linear-gradient(45deg,var(--primary),var(--secondary)); color: #000; }
-.btn-submit:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--primary),0 0 30px var(--secondary); }
-.btn-danger { background: var(--danger); color: #000; }
-.btn-danger:hover { transform: scale(1.05); box-shadow: 0 0 10px var(--danger); }
-
-.input-score { width: 50px; padding: 0.3rem; border-radius: 4px; border: 1px solid #555; margin: 0 0.3rem; background: #111; color: #fff; }
-
-.notification {
-    position: fixed; top: 1rem; right: 1rem; padding: 1rem 1.5rem; border-radius: 8px; color: #000; font-weight: 600; display: none; opacity: 0; transition: 0.3s;
-}
-.notification.show { display: block; opacity: 1; }
-
-.notification.success { background: var(--success); box-shadow: 0 0 15px var(--success); }
-.notification.error { background: var(--danger); box-shadow: 0 0 15px var(--danger); }
-
-/* Ranking neon */
-.ranking-table { width: 100%; border-collapse: collapse; margin-top: 1rem; color: var(--text); }
-.ranking-table th, .ranking-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #222; }
-.ranking-table th { background: #111; color: var(--primary); }
-
-/* Admin panel */
-.admin-section { margin-bottom: 2rem; border: 1px solid #222; padding: 1rem; border-radius: 12px; box-shadow: 0 0 15px #00ffff50,0 0 30px #ff00ff50; }
-
-</style>
+<title>Typer CS2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div id="login-panel">
-    <h2>Typer CS2</h2>
-    <button id="loginBtn">Zaloguj przez Google</button>
+<div id="login-panel" class="login-panel">
+    <h1>Typer CS2</h1>
+    <button id="loginBtn" class="btn btn-login">Zaloguj przez Google</button>
+    <input type="text" id="nickname" placeholder="Twój nick (tylko przy pierwszym logowaniu)">
 </div>
 
 <header style="display:none;">
@@ -114,6 +32,8 @@ main { flex: 1; padding: 2rem; }
     <section id="typowanie" class="tab-content active">
         <h2>Mecze do typowania</h2>
         <div id="matches-list"></div>
+        <h3>Twoja historia typów</h3>
+        <div id="user-history"></div>
     </section>
 
     <section id="ranking" class="tab-content">
@@ -131,16 +51,14 @@ main { flex: 1; padding: 2rem; }
             <h3>Dodaj mecz</h3>
             <input type="text" id="teamA" placeholder="Team A">
             <input type="text" id="teamB" placeholder="Team B">
-            <input type="time" id="matchTime">
+            <input type="datetime-local" id="matchTime">
             <input type="number" id="bop" placeholder="BOP" min="1" max="7">
             <button class="btn btn-submit" id="addMatchBtn">Dodaj</button>
         </div>
-
         <div class="admin-section">
             <h3>Mecze</h3>
             <div id="admin-matches-list"></div>
         </div>
-
         <div class="admin-section">
             <h3>Użytkownicy</h3>
             <div id="admin-users-list"></div>
@@ -150,9 +68,9 @@ main { flex: 1; padding: 2rem; }
 
 <div id="notification" class="notification"></div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
