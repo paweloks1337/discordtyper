@@ -4,89 +4,118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Typer CS2</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
 <style>
-  body { background-color: #1f2937; color: #f9fafb; font-family: 'Inter', sans-serif; }
-  .btn { cursor: pointer; transition: all 0.2s; }
-  .btn:hover { transform: scale(1.05); }
-  .card { background-color: #374151; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+body { background:#0b0d10; color:#e6e7e8; font-family:sans-serif; }
+.accent { color:#ffd24d; }
+.btn { background: linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition: all 0.2s; }
+.btn:hover { transform: scale(1.05); }
+.card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); border-radius:12px; padding:1rem; }
+.hidden { display:none; }
+.tab-btn-active { background:#ffd24d; color:#0b0d10; }
 </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4">
+<body class="p-4">
 
-<!-- ================== Logowanie ================== -->
+<!-- LOGIN -->
 <div id="loginCard" class="flex flex-col items-center justify-center h-screen">
-  <h1 class="text-4xl font-bold mb-6">Typer CS2</h1>
-  <p class="mb-4">Turniejowy typer — logowanie Google</p>
+  <h1 class="text-4xl font-bold mb-6 accent">Typer CS2</h1>
+  <p class="mb-4 text-gray-300">Turniejowy typer — logowanie Google</p>
   <div id="g_id_onload"
        data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-       data-login_uri=""
-       data-auto_prompt="false">
+       data-context="signin"
+       data-ux_mode="popup"
+       data-callback="onGoogleSignIn">
   </div>
   <div class="g_id_signin" data-type="standard"></div>
 </div>
 
-<!-- ================== Ustaw nick ================== -->
+<!-- NICK SETUP -->
 <div id="nickSetup" class="hidden flex flex-col items-center justify-center h-screen">
-  <h2 class="text-2xl font-semibold mb-4">Wprowadź swój nick</h2>
-  <input id="nickInput" type="text" class="p-2 rounded mb-2 text-black" placeholder="Twój nick">
-  <button onclick="saveNick()" class="btn px-4 py-2 bg-blue-500 rounded hover:bg-blue-700">Zapisz</button>
+  <h2 class="text-2xl font-bold accent mb-4">Wprowadź swój nick</h2>
+  <input id="nickInput" placeholder="Twój nick" class="p-2 rounded text-black mb-2 w-64"/>
+  <div class="flex gap-2">
+    <button onclick="saveNick()" class="btn px-4 py-2 rounded">Zapisz nick</button>
+    <button onclick="signOut()" class="px-4 py-2 rounded bg-gray-800 hover:bg-gray-700">Wyloguj</button>
+  </div>
   <p id="nickMsg" class="mt-2 text-red-400"></p>
 </div>
 
-<!-- ================== Główny panel ================== -->
-<div id="mainApp" class="hidden w-full max-w-4xl flex flex-col">
-  <div class="flex justify-between items-center mb-4">
-    <span id="userDisplay" class="font-bold text-xl"></span>
-    <button onclick="signOut()" class="btn px-3 py-1 bg-red-600 rounded hover:bg-red-800">Wyloguj</button>
-  </div>
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden max-w-4xl mx-auto flex flex-col gap-4">
+  <!-- NAV -->
+  <nav class="flex gap-2 mb-4">
+    <button class="px-4 py-2 card tab-btn-active" id="tabTypesBtn" onclick="showTab('types')">Typowanie</button>
+    <button class="px-4 py-2 card" id="tabRankingBtn" onclick="showTab('ranking')">Ranking</button>
+    <button class="px-4 py-2 card" id="tabAdminBtn" onclick="showTab('admin')">Admin</button>
+    <div class="ml-auto flex items-center gap-3">
+      <div id="userDisplay" class="text-sm text-gray-300"></div>
+      <button class="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700" onclick="signOut()">Wyloguj</button>
+    </div>
+  </nav>
 
-  <!-- Zakładki -->
-  <div class="flex gap-2 mb-4">
-    <button onclick="showTab('typowanie')" class="btn px-4 py-2 bg-gray-600 rounded hover:bg-gray-700 transition">Typowanie</button>
-    <button onclick="showTab('ranking')" class="btn px-4 py-2 bg-gray-600 rounded hover:bg-gray-700 transition">Ranking</button>
-    <button onclick="showTab('admin')" id="tabAdminBtn" class="btn px-4 py-2 bg-yellow-500 rounded hover:bg-yellow-600 transition hidden">Admin</button>
-  </div>
-
-  <!-- ================== Typowanie ================== -->
-  <section id="tab-typowanie" class="tab">
-    <h2 class="text-xl font-semibold mb-2">Mecze do typowania</h2>
-    <div id="meczeList"></div>
+  <!-- TAB: Typowanie -->
+  <section id="tab-types" class="tab card">
+    <h2 class="text-xl font-bold accent mb-3">Mecze do typowania</h2>
+    <div id="meczeList" class="space-y-3"></div>
   </section>
 
-  <!-- ================== Ranking ================== -->
-  <section id="tab-ranking" class="tab hidden">
-    <h2 class="text-xl font-semibold mb-2">Ranking</h2>
-    <div id="rankingList"></div>
+  <!-- TAB: Ranking -->
+  <section id="tab-ranking" class="tab card hidden">
+    <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
+    <div id="rankingList" class="space-y-2"></div>
   </section>
 
-  <!-- ================== Panel admina ================== -->
-  <section id="tab-admin" class="tab hidden">
-    <h2 class="text-xl font-semibold mb-2">Panel admina</h2>
-    
+  <!-- TAB: Admin -->
+  <section id="tab-admin" class="tab card hidden">
+    <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
+
+    <!-- Dodaj mecz -->
     <div class="mb-4">
-      <h3 class="font-semibold mb-2">Dodaj mecz</h3>
-      <input id="adminTeamA" placeholder="Team A" class="p-2 rounded text-black mr-2">
-      <input id="adminTeamB" placeholder="Team B" class="p-2 rounded text-black mr-2">
-      <input id="adminTime" type="time" class="p-2 rounded text-black mr-2">
-      <input id="adminBO" type="number" placeholder="BO" class="p-2 rounded text-black mr-2" min="1" value="1">
-      <button onclick="adminDodajMecz()" class="btn px-3 py-1 bg-green-500 rounded hover:bg-green-700">Dodaj</button>
+      <h3 class="font-semibold">Dodaj mecz</h3>
+      <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
+      <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/3 bg-transparent border"/>
+      <input id="adminTime" type="time" class="p-2 rounded w-1/4 ml-2 bg-transparent border"/>
+      <div class="mt-2">
+        <button class="btn px-3 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
+      </div>
     </div>
 
+    <!-- Mecze admin -->
     <div class="mb-4">
-      <h3 class="font-semibold mb-2">Mecze</h3>
-      <div id="adminMecze"></div>
+      <h3 class="font-semibold">Mecze</h3>
+      <div id="adminMecze" class="space-y-2"></div>
     </div>
 
+    <!-- Użytkownicy -->
     <div class="mb-4">
-      <h3 class="font-semibold mb-2">Użytkownicy</h3>
-      <div id="adminUsers"></div>
+      <h3 class="font-semibold">Użytkownicy</h3>
+      <div id="adminUsers" class="space-y-2"></div>
     </div>
   </section>
 </div>
 
-<script src="script.js"></script>
+<!-- Footer -->
+<footer class="mt-6 text-xs text-gray-500 text-center">Made for quick CS2 typer • SheetDB backend</footer>
+
+<script>
+/* ======== TAB FUNCTION ======= */
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('tab-'+name).classList.remove('hidden');
+
+  ['Types','Ranking','Admin'].forEach(lbl=>{
+    document.getElementById('tab'+lbl+'Btn').classList.remove('tab-btn-active');
+  });
+  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)+'Btn').classList.add('tab-btn-active');
+}
+
+/* Default tab */
+showTab('types');
+</script>
+
 </body>
 </html>
