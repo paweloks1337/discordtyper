@@ -1,27 +1,8 @@
-// Firebase setup
-import { initializeApp } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged
-} from "firebase/auth";
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  addDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy
-} from "firebase/firestore";
+// script.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDwh9_u2u_NenhPYyvhCaLKFCrCrMmMEGE",
   authDomain: "cs2typer.firebaseapp.com",
@@ -33,145 +14,208 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth();
-const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-let currentUser = null;
-
-// DOM Elements
+// DOM elements
+const loginSection = document.getElementById("loginSection");
+const appSection = document.getElementById("appSection");
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+const userLabel = document.getElementById("userLabel");
 const nicknameInput = document.getElementById("nicknameInput");
 const saveNickBtn = document.getElementById("saveNickBtn");
-const userLabel = document.getElementById("userLabel");
-
+const tabBtns = document.querySelectorAll(".tabBtn");
 const tabs = document.querySelectorAll(".tab");
-const tabButtons = document.querySelectorAll(".tabBtn");
+const matchesContainer = document.getElementById("matchesContainer");
+const rankingContainer = document.getElementById("rankingContainer");
+const addMatchBtn = document.getElementById("addMatchBtn");
+const adminTeamA = document.getElementById("adminTeamA");
+const adminTeamB = document.getElementById("adminTeamB");
+const adminBOP = document.getElementById("adminBOP");
+const adminTime = document.getElementById("adminTime");
+const adminMatchesContainer = document.getElementById("adminMatchesContainer");
+const adminUsersContainer = document.getElementById("adminUsersContainer");
 
-// Login
-loginBtn.addEventListener("click", async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    currentUser = result.user;
-    await checkUserFirestore(currentUser);
-    showApp();
-  } catch (err) {
-    console.error(err);
-    alert("Błąd logowania: " + err.message);
-  }
-});
+// STATE
+let currentUser = null;
+let nick = "";
+let role = "user"; // 'admin' jeśli Twój mail
+const adminEmail = "paweloxbieniek1@gmail.com";
 
-// Logout
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  currentUser = null;
-  showLogin();
-});
+let users = [];
+let matches = [];
+let ranking = {};
 
-// Check if user exists in Firestore
-async function checkUserFirestore(user) {
-  const userRef = doc(db, "users", user.uid);
-  const userSnap = await getDoc(userRef);
-  if (!userSnap.exists()) {
-    await setDoc(userRef, {
-      nickname: "",
-      email: user.email,
-      role: "user",
-      points: 0
-    });
-  } else {
-    // Load nickname and role
-    const data = userSnap.data();
-    nicknameInput.value = data.nickname || "";
-  }
+// UTILS
+function updateTabs(tabIndex) {
+  tabs.forEach((t, i) => t.classList.toggle("active", i === tabIndex));
 }
 
-// Save nickname
-saveNickBtn.addEventListener("click", async () => {
-  const nick = nicknameInput.value.trim();
-  if (!nick) return alert("Wpisz nick!");
-  const userRef = doc(db, "users", currentUser.uid);
-  await updateDoc(userRef, { nickname: nick });
-  userLabel.innerText = `Zalogowany jako: ${nick}`;
-});
+function saveNick() {
+  if (nicknameInput.value.trim() === "") return alert("Wprowadź nick!");
+  nick = nicknameInput.value.trim();
+  if (!users.find(u => u.email === currentUser.email)) {
+    users.push({ email: currentUser.email, nick, role });
+  } else {
+    users.find(u => u.email === currentUser.email).nick = nick;
+  }
+  updateRanking();
+  renderUsers();
+}
 
-// Tab switching
-tabButtons.forEach((btn, idx) => {
-  btn.addEventListener("click", () => {
-    tabs.forEach(t => t.style.display = "none");
-    tabs[idx].style.display = "block";
+function updateRanking() {
+  ranking = {};
+  users.forEach(u => ranking[u.email] = 0);
+  matches.forEach(m => {
+    m.typy?.forEach(t => {
+      if (!ranking[t.email]) ranking[t.email] = 0;
+      const correctWinner = (m.scoreA !== null && m.scoreB !== null) ? (m.scoreA > m.scoreB ? m.teamA : m.teamB) : null;
+      if (t.team === correctWinner && t.scoreA == m.scoreA && t.scoreB == m.scoreB) ranking[t.email] += 3;
+      else if (t.team === correctWinner) ranking[t.email] += 2;
+    });
   });
-});
+  renderRanking();
+}
 
-// Fetch matches
-async function fetchMatches() {
-  const matchesCol = collection(db, "matches");
-  const snapshot = await getDocs(query(matchesCol, orderBy("startTime")));
-  const matchesContainer = document.getElementById("matchesContainer");
+// RENDER
+function renderUsers() {
+  if (currentUser.email !== adminEmail) return;
+  adminUsersContainer.innerHTML = "<h3 class='font-bold mb-2'>Użytkownicy:</h3>";
+  users.forEach(u => {
+    const div = document.createElement("div");
+    div.className = "flex justify-between mb-1 items-center";
+    div.innerHTML = `<span>${u.nick} (${u.email})</span> 
+      <button class="bg-red-500 px-2 py-1 text-white rounded hover:bg-red-600" onclick="deleteUser('${u.email}')">Usuń</button>`;
+    adminUsersContainer.appendChild(div);
+  });
+}
+
+window.deleteUser = (email) => {
+  users = users.filter(u => u.email !== email);
+  updateRanking();
+  renderUsers();
+  renderMatches();
+};
+
+function renderMatches() {
   matchesContainer.innerHTML = "";
-  snapshot.forEach(docSnap => {
-    const match = docSnap.data();
+  adminMatchesContainer.innerHTML = "";
+  matches.forEach((m, i) => {
+    // Typowanie
+    const now = new Date();
+    const matchTime = new Date(m.time);
+    const canType = now < matchTime;
     const matchDiv = document.createElement("div");
     matchDiv.className = "matchCard";
-    const startTime = new Date(match.startTime).toLocaleTimeString();
     matchDiv.innerHTML = `
-      <div>${match.teamA} vs ${match.teamB} | ${startTime} | BOP: ${match.bop}</div>
-      <button class="pickBtn" data-match="${docSnap.id}" data-team="A">${match.teamA}</button>
-      <button class="pickBtn" data-match="${docSnap.id}" data-team="B">${match.teamB}</button>
-      <input type="text" placeholder="Wynik (np. 16:12)" class="scoreInput" data-match="${docSnap.id}"/>
-      <button class="submitPick" data-match="${docSnap.id}">Wyślij</button>
-      <span class="status" id="status-${docSnap.id}"></span>
+      <div>
+        ${m.teamA} vs ${m.teamB} 
+        <span class="status">${canType ? matchTime.toLocaleString() : "Rozpoczęty"}</span>
+      </div>
+      <div>
+        <input type="number" placeholder="Score ${m.teamA}" class="scoreA w-16 border px-1 py-0.5 rounded mr-1">
+        <input type="number" placeholder="Score ${m.teamB}" class="scoreB w-16 border px-1 py-0.5 rounded mr-1">
+        <button class="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600" ${!canType ? "disabled" : ""} onclick="sendTyp(${i})">Wyślij</button>
+      </div>
     `;
     matchesContainer.appendChild(matchDiv);
+
+    // Panel admina
+    if (currentUser.email === adminEmail) {
+      const div = document.createElement("div");
+      div.className = "matchCard";
+      div.innerHTML = `
+        ${m.teamA} vs ${m.teamB} | BOP: ${m.BOP} | ${matchTime.toLocaleString()} 
+        <button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 ml-2" onclick="deleteMatch(${i})">Usuń</button>
+        <input type="number" placeholder="${m.teamA}" class="adminScoreA w-16 border px-1 py-0.5 rounded ml-2">
+        <input type="number" placeholder="${m.teamB}" class="adminScoreB w-16 border px-1 py-0.5 rounded ml-2">
+        <button class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 ml-2" onclick="setScore(${i})">Zapisz wynik</button>
+      `;
+      adminMatchesContainer.appendChild(div);
+    }
   });
+}
 
-  // Add pick event listeners
-  document.querySelectorAll(".submitPick").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      const matchId = btn.dataset.match;
-      const scoreInput = document.querySelector(`.scoreInput[data-match='${matchId}']`);
-      const pick = scoreInput.value.trim();
-      if (!pick) return alert("Wpisz wynik!");
-      await submitPick(matchId, pick);
-    });
+function renderRanking() {
+  rankingContainer.innerHTML = "<ul>";
+  Object.entries(ranking).sort((a, b) => b[1] - a[1]).forEach(([email, pts]) => {
+    const user = users.find(u => u.email === email);
+    if (!user) return;
+    rankingContainer.innerHTML += `<li>${user.nick}: ${pts} pkt</li>`;
   });
+  rankingContainer.innerHTML += "</ul>";
 }
 
-// Submit pick
-async function submitPick(matchId, pick) {
-  const pickRef = doc(db, "matches", matchId, "picks", currentUser.uid);
-  await setDoc(pickRef, {
-    userId: currentUser.uid,
-    pick: pick,
-    timestamp: new Date()
-  });
-  document.getElementById(`status-${matchId}`).innerText = "🟢 Typ oddany!";
-}
-
-// Show app after login
-function showApp() {
-  document.getElementById("loginSection").style.display = "none";
-  document.getElementById("appSection").style.display = "block";
-  userLabel.innerText = `Zalogowany jako: ${currentUser.email}`;
-  fetchMatches();
-}
-
-// Show login screen
-function showLogin() {
-  document.getElementById("loginSection").style.display = "block";
-  document.getElementById("appSection").style.display = "none";
-}
-
-// Listen for auth state changes
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user;
-    showApp();
+// ACTIONS
+function sendTyp(i) {
+  const match = matches[i];
+  const inputs = document.querySelectorAll("#matchesContainer .matchCard")[i].querySelectorAll("input");
+  const scoreA = parseInt(inputs[0].value);
+  const scoreB = parseInt(inputs[1].value);
+  if (isNaN(scoreA) || isNaN(scoreB)) return alert("Wpisz wyniki!");
+  if (!match.typy) match.typy = [];
+  const existing = match.typy.find(t => t.email === currentUser.email);
+  if (existing) {
+    existing.team = scoreA > scoreB ? match.teamA : match.teamB;
+    existing.scoreA = scoreA;
+    existing.scoreB = scoreB;
   } else {
-    currentUser = null;
-    showLogin();
+    match.typy.push({
+      email: currentUser.email,
+      team: scoreA > scoreB ? match.teamA : match.teamB,
+      scoreA,
+      scoreB
+    });
   }
+  updateRanking();
+  alert("Typ zapisany! 🟢");
+}
+
+window.deleteMatch = (i) => {
+  matches.splice(i, 1);
+  renderMatches();
+};
+
+window.setScore = (i) => {
+  const match = matches[i];
+  const inputs = document.querySelectorAll(".adminScoreA")[i];
+  const inputsB = document.querySelectorAll(".adminScoreB")[i];
+  const scoreA = parseInt(document.querySelectorAll(".adminScoreA")[i].value);
+  const scoreB = parseInt(document.querySelectorAll(".adminScoreB")[i].value);
+  if (isNaN(scoreA) || isNaN(scoreB)) return alert("Wpisz wynik!");
+  match.scoreA = scoreA;
+  match.scoreB = scoreB;
+  updateRanking();
+  renderMatches();
+};
+
+addMatchBtn.addEventListener("click", () => {
+  const teamA = adminTeamA.value.trim();
+  const teamB = adminTeamB.value.trim();
+  const BOP = parseInt(adminBOP.value);
+  const time = adminTime.value;
+  if (!teamA || !teamB || !time) return alert("Wypełnij wszystkie pola!");
+  matches.push({ teamA, teamB, BOP, time, typy: [] });
+  renderMatches();
 });
 
-// Call fetchMatches periodically to prevent odświeżania
-setInterval(fetchMatches, 30000);
+tabBtns.forEach(btn => btn.addEventListener("click", () => updateTabs(parseInt(btn.dataset.tab))));
+saveNickBtn.addEventListener("click", saveNick);
+
+loginBtn.addEventListener("click", () => {
+  signInWithPopup(auth, provider).then(result => {
+    currentUser = result.user;
+    role = currentUser.email === adminEmail ? "admin" : "user";
+    userLabel.innerText = `Zalogowany jako: ${currentUser.displayName}`;
+    loginSection.classList.add("hidden");
+    appSection.classList.remove("hidden");
+  }).catch(console.error);
+});
+
+logoutBtn.addEventListener("click", () => {
+  signOut(auth).then(() => {
+    currentUser = null;
+    loginSection.classList.remove("hidden");
+    appSection.classList.add("hidden");
+  });
+});
