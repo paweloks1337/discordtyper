@@ -14,7 +14,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // -----------------------
-// GLOBAL VARIABLES
+// GLOBAL
 // -----------------------
 let currentUser = null;
 let isAdmin = false;
@@ -30,15 +30,15 @@ const header = document.querySelector("header");
 const nav = document.querySelector("nav");
 const logoutBtn = document.getElementById("logoutBtn");
 const userNameSpan = document.getElementById("user-name");
-const tabs = document.querySelectorAll(".tab-btn");
-const contents = document.querySelectorAll(".tab-content");
+const tabs = document.querySelectorAll('.tab-btn');
+const contents = document.querySelectorAll('.tab-content');
 
 // -----------------------
 // AUTH
 // -----------------------
 loginBtn.addEventListener("click", async () => {
     const provider = new firebase.auth.GoogleAuthProvider();
-    try { await auth.signInWithPopup(provider); } 
+    try { await auth.signInWithPopup(provider); }
     catch { showNotification("Błąd logowania!", "error"); }
 });
 
@@ -47,10 +47,10 @@ logoutBtn.addEventListener("click", () => auth.signOut());
 auth.onAuthStateChanged(async user => {
     if(user){
         currentUser = user;
-        loginPanel.style.display = "none";
-        header.style.display = "flex";
-        nav.style.display = "flex";
-        document.querySelector("main").style.display = "block";
+        loginPanel.style.display="none";
+        header.style.display="flex";
+        nav.style.display="flex";
+        document.querySelector("main").style.display="block";
 
         const userRef = db.collection("users").doc(user.uid);
         const userDoc = await userRef.get();
@@ -67,10 +67,10 @@ auth.onAuthStateChanged(async user => {
         loadData();
     } else {
         currentUser = null;
-        loginPanel.style.display = "flex";
-        header.style.display = "none";
-        nav.style.display = "none";
-        document.querySelector("main").style.display = "none";
+        loginPanel.style.display="flex";
+        header.style.display="none";
+        nav.style.display="none";
+        document.querySelector("main").style.display="none";
     }
 });
 
@@ -81,7 +81,7 @@ function checkAdmin(email){
 }
 
 // -----------------------
-// NAVIGATION
+// NAV
 // -----------------------
 tabs.forEach(tab=>{
     tab.addEventListener("click",()=>{
@@ -113,7 +113,6 @@ async function loadData(){
     renderMatches();
     renderAdminMatches();
     renderAdminUsers();
-    renderUserHistory();
 }
 
 // -----------------------
@@ -121,7 +120,8 @@ async function loadData(){
 // -----------------------
 function renderMatches(){
     const container = document.getElementById("matches-list");
-    container.innerHTML = "";
+    const historyContainer = document.getElementById("user-history");
+    container.innerHTML=""; historyContainer.innerHTML="";
     const now = new Date();
 
     matches.forEach(match=>{
@@ -129,7 +129,7 @@ function renderMatches(){
         const canType = now<start;
         const userType = match.types && match.types[currentUser.uid];
 
-        const div = document.createElement("div");
+        const div=document.createElement("div");
         div.className="match-card";
         div.innerHTML=`
             <div class="match-info">
@@ -145,24 +145,14 @@ function renderMatches(){
             <div class="type-feedback" id="feedback_${match.id}"></div>
         `;
         container.appendChild(div);
-        if(canType) startCountdown(match.id,start);
-    });
-}
 
-// -----------------------
-// USER HISTORY
-// -----------------------
-function renderUserHistory(){
-    const container = document.getElementById("user-history");
-    container.innerHTML = "";
-    matches.forEach(match=>{
-        const userType = match.types && match.types[currentUser.uid];
         if(userType){
-            const div = document.createElement("div");
-            div.className="match-card";
-            div.innerHTML=`${match.teamA} vs ${match.teamB} - Twój typ: ${userType.scoreA}-${userType.scoreB}`;
-            container.appendChild(div);
+            const hdiv = document.createElement("div");
+            hdiv.textContent = `${match.teamA} vs ${match.teamB}: ${userType.scoreA}-${userType.scoreB}`;
+            historyContainer.appendChild(hdiv);
         }
+
+        if(canType) startCountdown(match.id,start);
     });
 }
 
@@ -194,9 +184,11 @@ async function submitType(matchId){
     const scoreB=parseInt(document.getElementById(`scoreB_${matchId}`).value);
     if(isNaN(scoreA)||isNaN(scoreB)) return showNotification("Podaj poprawne wyniki!","error");
 
+    const nick = (await db.collection("users").doc(currentUser.uid).get()).data().nick;
+
     await db.collection("matches").doc(matchId).collection("types").doc(currentUser.uid).set({
         userId: currentUser.uid,
-        nick: userNameSpan.textContent.replace("Zalogowany jako: ",""),
+        nick,
         scoreA,
         scoreB,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -236,6 +228,7 @@ document.getElementById("addMatchBtn").addEventListener("click",async()=>{
     const teamB=document.getElementById("teamB").value.trim();
     const bop=parseInt(document.getElementById("bop").value);
     const time=document.getElementById("matchTime").value;
+
     if(!teamA||!teamB||!bop||!time) return showNotification("Uzupełnij wszystkie pola!","error");
 
     const startTime=new Date();
@@ -243,7 +236,9 @@ document.getElementById("addMatchBtn").addEventListener("click",async()=>{
     startTime.setHours(parseInt(hours),parseInt(minutes),0,0);
 
     try{
-        await db.collection("matches").add({teamA,teamB,bop,startTime: firebase.firestore.Timestamp.fromDate(startTime)});
+        await db.collection("matches").add({
+            teamA,teamB,bop,startTime: firebase.firestore.Timestamp.fromDate(startTime)
+        });
         showNotification("Mecz dodany!","success");
         loadData();
         document.getElementById("teamA").value="";
@@ -272,30 +267,55 @@ function renderAdminUsers(){
     users.forEach(u=>{
         const div=document.createElement("div");
         div.className="match-card";
-        div.innerHTML=`${u.nick} (${u.email || u.id})
-        <button class="btn btn-danger" onclick="deleteUser('${u.id}')">Usuń</button>`;
+        div.innerHTML = `${u.nick} (${u.email || u.id})
+            <button class="btn btn-danger" onclick="deleteUser('${u.id}')">Usuń</button>`;
         container.appendChild(div);
     });
 }
 
 async function deleteMatch(id){
     if(!confirm("Na pewno chcesz usunąć mecz?")) return;
-    await db.collection("matches").doc(id).delete();
-    loadData();
+    try {
+        await db.collection("matches").doc(id).delete();
+        showNotification("Mecz usunięty", "success");
+        loadData();
+    } catch(err){
+        console.error(err);
+        showNotification("Błąd usuwania meczu", "error");
+    }
 }
 
 async function deleteUser(id){
     if(!confirm("Na pewno chcesz usunąć użytkownika?")) return;
-    await db.collection("users").doc(id).delete();
-    loadData();
+    try {
+        // usuwamy dokument użytkownika
+        await db.collection("users").doc(id).delete();
+        // opcjonalnie: usuń typy tego użytkownika z każdego meczu (bez tego będą wisieć)
+        const matchesSnap = await db.collection("matches").get();
+        const batch = db.batch();
+        matchesSnap.forEach(mDoc => {
+            const typeRef = mDoc.ref.collection("types").doc(id);
+            batch.delete(typeRef);
+        });
+        await batch.commit();
+        showNotification("Użytkownik usunięty", "success");
+        loadData();
+    } catch(err){
+        console.error(err);
+        showNotification("Błąd usuwania użytkownika", "error");
+    }
 }
 
 // -----------------------
 // NOTIFICATIONS
 // -----------------------
-function showNotification(msg,type="success"){
-    const notif=document.getElementById("notification");
-    notif.textContent=msg;
-    notif.className=`notification ${type} show`;
-    setTimeout(()=>{notif.className=`notification ${type}`;},2500);
+function showNotification(msg, type = "success") {
+    const notif = document.getElementById("notification");
+    notif.textContent = msg;
+    notif.className = `notification ${type} show`;
+    // usuń po czasie
+    clearTimeout(showNotification._timeout);
+    showNotification._timeout = setTimeout(() => {
+        notif.className = `notification ${type}`;
+    }, 2500);
 }
