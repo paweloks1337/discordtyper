@@ -1,92 +1,122 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Typer CS2</title>
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind CDN -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
 
 <!-- Google Sign-In -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
 <!-- jwt-decode -->
 <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
 
 <style>
-body { background-color: #0b0d10; color: #e6e7e8; }
-.accent { color: #ffd24d; }
-.btn { @apply bg-gradient-to-r from-yellow-400 to-yellow-300 text-black font-semibold transition-transform transform hover:scale-105; }
-.card { background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding:1rem; margin-bottom:1rem; }
-.tab-btn-active { background: rgba(255,255,255,0.1); }
-input, select { background: rgba(0,0,0,0.2); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:0.5rem; padding:0.5rem; width:100%; }
+  body { background:#0b0d10; color:#e6e7e8; font-family: 'Inter', sans-serif; }
+  .accent { color:#ffd24d; }
+  .btn { background:linear-gradient(90deg,#ffd24d,#ffcf5c); color:#0b0d10; font-weight:600; transition: transform 0.2s; }
+  .btn:hover { transform: scale(1.05); }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); transition: all 0.2s; }
+  .card:hover { transform: translateY(-2px); }
+  .btn-team { background: #1f2937; color: #ffd24d; font-weight: 600; transition: transform 0.2s; }
+  .btn-team:hover { transform: scale(1.05); }
+  .btn-submit { background: #ffd24d; color: #0b0d10; font-weight: 700; transition: all 0.2s; }
+  .btn-submit:hover { background: #ffc900; }
+  @keyframes fadeIn { from {opacity:0; transform: translateY(10px)} to {opacity:1; transform: translateY(0);} }
+  .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
 </style>
 </head>
-<body class="p-4 font-sans">
+<body class="p-4">
 
-<div class="max-w-3xl mx-auto">
+<div class="max-w-4xl mx-auto">
 
   <!-- Nagłówek -->
   <header class="mb-6 text-center">
     <h1 class="text-4xl font-extrabold accent">Typer CS2</h1>
-    <p class="text-gray-400">Turniejowy typer • Logowanie Google</p>
+    <p class="text-gray-300">Turniejowy typer – logowanie Google</p>
   </header>
 
   <!-- LOGIN -->
-  <div id="loginCard" class="card text-center">
+  <div id="loginCard" class="card p-6 rounded-lg mb-4 text-center">
     <div id="g_id_onload"
-         data-client_id="131506095440-6msi2u50gduo2tsipgjfpb6jn1t5j7l7.apps.googleusercontent.com"
-         data-context="signin"
-         data-ux_mode="popup"
-         data-callback="onGoogleSignIn">
+      data-client_id="TU_WKLEJ_SWÓJ_GOOGLE_CLIENT_ID"
+      data-context="signin"
+      data-ux_mode="popup"
+      data-callback="onGoogleSignIn">
     </div>
-    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"></div>
-    <p class="text-gray-400 mt-2 text-sm">Zaloguj się, aby typować mecze. Twój nick ustawisz po zalogowaniu.</p>
+    <div class="g_id_signin mt-4" data-type="standard" data-size="large" data-theme="outline"></div>
+    <p class="mt-3 text-sm text-gray-400">Zaloguj się kontem Google — nick ustawisz po zalogowaniu.</p>
   </div>
 
-  <!-- NICK -->
-  <div id="nickSetup" class="card" style="display:none;">
-    <h2 class="text-xl font-bold accent mb-2">Ustaw swój nick</h2>
-    <input id="nickInput" placeholder="Twój nick" maxlength="20"/>
-    <button class="btn mt-2 w-full" onclick="saveNick()">Zapisz nick</button>
+  <!-- Nick setup -->
+  <div id="nickSetup" class="card p-4 rounded-lg mb-4" style="display:none;">
+    <h3 class="text-lg font-bold accent mb-2">Ustaw swój nick</h3>
+    <input id="nickInput" placeholder="Twój nick" class="w-full p-2 rounded border bg-transparent mb-2" maxlength="20"/>
+    <div class="flex gap-2">
+      <button class="btn px-4 py-2 rounded" onclick="saveNick()">Zapisz nick</button>
+      <button class="px-4 py-2 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+    </div>
+    <p id="nickMsg" class="text-sm text-gray-400 mt-2"></p>
   </div>
 
-  <!-- GŁÓWNA APLIKACJA -->
+  <!-- GŁÓWNY PANEL -->
   <div id="mainApp" style="display:none;">
-    <!-- Tabs -->
+    <!-- Zakładki -->
     <nav class="flex gap-2 mb-4">
-      <button class="tab-btn btn px-4 py-2" onclick="showTab('types')">Typy</button>
-      <button class="tab-btn btn px-4 py-2" onclick="showTab('ranking')">Ranking</button>
-      <button class="tab-btn btn px-4 py-2" id="adminTabBtn" style="display:none;" onclick="showTab('admin')">Panel Admina</button>
-      <div class="ml-auto flex items-center gap-2 text-sm text-gray-300">
-        <span id="userDisplay"></span>
-        <button class="px-2 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
+      <button class="px-4 py-2 rounded card" id="tabTypesBtn" onclick="showTab('types')">TYPY</button>
+      <button class="px-4 py-2 rounded card" id="tabRankingBtn" onclick="showTab('ranking')">RANKING</button>
+      <button class="px-4 py-2 rounded card" id="tabAdminBtn" onclick="showTab('admin')">PANEL ADMINA</button>
+      <div class="ml-auto flex items-center gap-3">
+        <div id="userDisplay" class="text-sm text-gray-300"></div>
+        <button class="px-3 py-1 rounded bg-gray-800" onclick="signOut()">Wyloguj</button>
       </div>
     </nav>
 
     <!-- TYPY -->
-    <div id="tab-types" class="tab card"></div>
+    <section id="tab-types" class="tab card p-4 rounded-lg">
+      <h2 class="text-xl font-bold accent mb-3">Typuj mecze</h2>
+      <div id="meczeList" class="space-y-3"></div>
+    </section>
 
     <!-- RANKING -->
-    <div id="tab-ranking" class="tab card" style="display:none;"></div>
+    <section id="tab-ranking" class="tab card p-4 rounded-lg" style="display:none;">
+      <h2 class="text-xl font-bold accent mb-3">Ranking</h2>
+      <div id="rankingList" class="space-y-2"></div>
+    </section>
 
-    <!-- PANEL ADMINA -->
-    <div id="tab-admin" class="tab card" style="display:none;">
-      <h2 class="text-xl font-bold accent mb-2">Panel Admina</h2>
-      <input id="adminMatchA" placeholder="Drużyna A" class="mb-2"/>
-      <input id="adminMatchB" placeholder="Drużyna B" class="mb-2"/>
-      <input type="time" id="adminMatchTime" class="mb-2"/>
-      <input type="number" id="adminMatchRounds" placeholder="Liczba rund (BOP)" class="mb-2"/>
-      <button class="btn w-full" onclick="adminAddMatch()">Dodaj mecz</button>
-      <div id="adminMatches" class="mt-4 space-y-2"></div>
-    </div>
+    <!-- ADMIN -->
+    <section id="tab-admin" class="tab card p-4 rounded-lg" style="display:none;">
+      <h2 class="text-xl font-bold accent mb-3">Panel Admina</h2>
+      <div class="mb-4">
+        <h3 class="font-semibold">Dodaj mecz</h3>
+        <input id="adminTeamA" placeholder="Team A" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
+        <input id="adminTeamB" placeholder="Team B" class="p-2 rounded w-1/3 mr-2 bg-transparent border"/>
+        <input id="adminTime" type="time" class="p-2 rounded w-1/3 bg-transparent border"/>
+        <div class="mt-2">
+          <button class="btn px-3 py-2 rounded" onclick="adminDodajMecz()">Dodaj mecz</button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <h3 class="font-semibold">Mecze (wpisz wynik)</h3>
+        <div id="adminMecze" class="space-y-2"></div>
+      </div>
+      <div class="mb-4">
+        <h3 class="font-semibold">Użytkownicy</h3>
+        <div id="adminUsers" class="space-y-2"></div>
+      </div>
+    </section>
+
   </div>
 
-  <footer class="mt-6 text-center text-gray-500 text-sm">Made for CS2 • Demo</footer>
+  <footer class="mt-6 text-xs text-gray-500 text-center">Made for quick CS2 typer • SheetDB backend</footer>
 </div>
 
-<script src="app.js"></script>
-
+<script src="script.js"></script>
 </body>
 </html>
