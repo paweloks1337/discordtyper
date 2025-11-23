@@ -1,3 +1,4 @@
+window.handleCredentialResponse = handleCredentialResponse;
 const API_BASE = "https://sheetdb.io/api/v1/zwlvogb5fk6ay"; 
 let currentUser = null;
 
