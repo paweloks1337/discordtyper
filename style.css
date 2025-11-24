@@ -1,0 +1,256 @@
+/* -----------------------
+   GLOBAL
+----------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #111;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* -----------------------
+   HEADER
+----------------------- */
+header {
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 30px;
+    background: linear-gradient(90deg,#0f0c29,#302b63,#24243e);
+    color: #0ff;
+    box-shadow: 0 0 20px rgba(0,255,255,0.3);
+}
+
+header span {
+    font-weight: bold;
+}
+
+header button {
+    padding: 8px 15px;
+    background-color: #0ff;
+    color: #111;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+header button:hover {
+    background-color: #0cc;
+}
+
+/* -----------------------
+   NAVIGATION
+----------------------- */
+nav {
+    display: none;
+    background-color: #222;
+    padding: 10px 0;
+    text-align: center;
+}
+
+nav button {
+    background-color: transparent;
+    border: 2px solid #0ff;
+    color: #0ff;
+    padding: 8px 16px;
+    margin: 0 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+nav button.active, nav button:hover {
+    background-color: #0ff;
+    color: #111;
+}
+
+/* -----------------------
+   LOGIN PANEL
+----------------------- */
+#login-panel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    flex: 1;
+    text-align: center;
+    background: #111;
+}
+
+#login-panel h1 {
+    color: #0ff;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px #0ff;
+}
+
+#loginBtn {
+    padding: 15px 30px;
+    font-size: 18px;
+    color: #111;
+    background-color: #0ff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px #0ff;
+}
+
+#loginBtn:hover {
+    background-color: #0cc;
+    box-shadow: 0 0 30px #0cc;
+}
+
+/* -----------------------
+   MAIN CONTENT
+----------------------- */
+main {
+    display: none;
+    padding: 20px 40px;
+    flex: 1;
+}
+
+/* -----------------------
+   MATCH CARD
+----------------------- */
+.match-card {
+    background: #222;
+    border: 2px solid #0ff;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 0 15px rgba(0,255,255,0.2);
+    transition: all 0.3s ease;
+}
+
+.match-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 25px rgba(0,255,255,0.4);
+}
+
+.match-info {
+    margin-bottom: 10px;
+}
+
+.match-teams {
+    font-weight: bold;
+    color: #0ff;
+}
+
+.match-time {
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+.match-history {
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+/* -----------------------
+   INPUTS & BUTTONS
+----------------------- */
+.input-score {
+    width: 60px;
+    margin-right: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #0ff;
+    background-color: #111;
+    color: #0ff;
+}
+
+.btn {
+    cursor: pointer;
+    border-radius: 5px;
+    padding: 5px 12px;
+    border: none;
+    color: #111;
+    background-color: #0ff;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    background-color: #0cc;
+}
+
+.btn-danger {
+    background-color: #f00;
+}
+
+.btn-danger:hover {
+    background-color: #c00;
+}
+
+/* -----------------------
+   TABS
+----------------------- */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* -----------------------
+   RANKING TABLE
+----------------------- */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #0ff;
+    text-align: center;
+}
+
+.top1 { color: gold; font-weight: bold; }
+.top2 { color: silver; font-weight: bold; }
+.top3 { color: #cd7f32; font-weight: bold; }
+
+/* -----------------------
+   NOTIFICATIONS
+----------------------- */
+#notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 5px;
+    color: #111;
+    background-color: #0ff;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.5s ease;
+    z-index: 999;
+}
+
+#notification.error {
+    background-color: #f00;
+}
+
+#notification.show {
+    opacity: 1;
+    pointer-events: auto;
+    box-shadow: 0 0 20px #0ff;
+}
+
+/* -----------------------
+   USER HISTORY
+----------------------- */
+#user-history .match-card {
+    border-color: #0cc;
+    box-shadow: 0 0 10px #0cc;
+}
