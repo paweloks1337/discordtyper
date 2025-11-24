@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typer CS2</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<!-- PANEL LOGOWANIA -->
+<div id="login-panel">
+    <div class="login-card">
+        <h1>Typer CS2</h1>
+        <button id="loginBtn">Zaloguj się przez Google</button>
+    </div>
+</div>
+
+<header>
+    <h1>Typer CS2</h1>
+    <div>
+        <span id="user-name"></span>
+        <button id="logoutBtn">Wyloguj</button>
+    </div>
+</header>
+
+<nav>
+    <button class="tab-btn active" data-tab="typowanie">Typowanie</button>
+    <button class="tab-btn" data-tab="ranking">Ranking</button>
+    <button class="tab-btn" data-tab="admin">Panel Admina</button>
+</nav>
+
+<main>
+    <!-- Typowanie -->
+    <section id="typowanie" class="tab-content active">
+        <h2>Mecze do typowania</h2>
+        <div id="matches-list"></div>
+        <h3>Twoja historia typów</h3>
+        <div id="user-history"></div>
+    </section>
+
+    <!-- Ranking -->
+    <section id="ranking" class="tab-content">
+        <h2>Ranking</h2>
+        <table class="ranking-table">
+            <thead>
+                <tr><th>#</th><th>Nick</th><th>Punkty</th></tr>
+            </thead>
+            <tbody id="ranking-list"></tbody>
+        </table>
+    </section>
+
+    <!-- Panel Admina -->
+    <section id="admin" class="tab-content">
+        <div class="admin-section">
+            <h3>Dodaj mecz</h3>
+            <input type="text" id="teamA" placeholder="Team A">
+            <input type="text" id="teamB" placeholder="Team B">
+            <input type="datetime-local" id="matchTime">
+            <input type="number" id="bop" placeholder="BOP" min="1" max="7">
+            <button class="btn btn-submit" id="addMatchBtn">Dodaj</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>Mecze</h3>
+            <div id="admin-matches-list"></div>
+        </div>
+
+        <div class="admin-section">
+            <h3>Użytkownicy</h3>
+            <div id="admin-users-list"></div>
+        </div>
+    </section>
+</main>
+
+<div id="notification" class="notification"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
