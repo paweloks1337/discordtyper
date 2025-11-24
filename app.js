@@ -259,28 +259,35 @@ document.getElementById("addMatchBtn").addEventListener("click", async () => {
     if (!teamA || !teamB || !bop || !dateStr)
         return showNotification("Wypełnij wszystkie pola!", "error");
 
-    // DATE PARSER → FORMAT: "DD.MM.YYYY HH:MM"
-    const [datePart, timePart] = dateStr.split(" ");
-    const [d, m, y] = datePart.split(".");
-    const [hh, mm] = timePart.split(":");
+    // DATE PARSER
+    try {
+        const [timePart, datePart] = dateStr.split(" ");
+        if(!timePart || !datePart) throw "Niepoprawny format daty";
 
-    const startTime = new Date(y, m - 1, d, hh, mm);
+        const [hh, mm] = timePart.split(":").map(Number);
+        const [dd, mo, yyyy] = datePart.split(".").map(Number);
 
-    await addDoc(collection(db, "matches"), {
-        teamA,
-        teamB,
-        bop,
-        startTime: startTime.getTime()
-    });
+        const startTime = new Date(yyyy, mo - 1, dd, hh, mm);
 
-    showNotification("Mecz dodany!", "success");
+        await addDoc(collection(db, "matches"), {
+            teamA,
+            teamB,
+            bop,
+            startTime: startTime.getTime()
+        });
 
-    document.getElementById("teamA").value = "";
-    document.getElementById("teamB").value = "";
-    document.getElementById("bop").value = "";
-    document.getElementById("matchDate").value = "";
+        showNotification("Mecz dodany!", "success");
 
-    loadData();
+        document.getElementById("teamA").value = "";
+        document.getElementById("teamB").value = "";
+        document.getElementById("bop").value = "";
+        document.getElementById("matchDate").value = "";
+
+        loadData();
+    } catch (err) {
+        console.error(err);
+        showNotification("Nie udało się dodać meczu! Format: HH:MM DD.MM.YYYY", "error");
+    }
 });
 
 // ------------------------------------------------------------
